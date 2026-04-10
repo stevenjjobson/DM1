@@ -214,6 +214,17 @@ async def create_character(
         "binding_contract": body.appearance,
     }
 
+    # Store selected spells (cantrips vs. leveled)
+    if body.selected_spells:
+        character_attributes["known_cantrips"] = [
+            s for s in body.selected_spells
+            if (spell := srd.get_spell(s)) and spell.get("level") == 0
+        ]
+        character_attributes["known_spells"] = [
+            s for s in body.selected_spells
+            if (spell := srd.get_spell(s)) and spell.get("level", 0) > 0
+        ]
+
     # Build spell slots
     slots = srd.spell_slots_for_class_level(body.class_index, 1)
     if slots:

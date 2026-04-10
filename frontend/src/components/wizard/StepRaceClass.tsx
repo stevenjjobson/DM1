@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useWizardStore } from "@/stores/wizard-store";
 import { api } from "@/lib/api";
+import { SpellPicker } from "./SpellPicker";
 
 type RaceSummary = {
   index: string;
@@ -21,15 +22,42 @@ type ClassSummary = {
   has_spellcasting: boolean;
 };
 
+type SpellcastingConfig = {
+  has_spellcasting: boolean;
+  cantrips_known: number;
+  spells_known: number | null;
+  spell_slots: Record<string, number>;
+  caster_type: "known" | "prepared" | "none";
+};
+
 export function StepRaceClass() {
-  const { raceIndex, classIndex, updateField } = useWizardStore();
+  const { raceIndex, classIndex, abilities, updateField, clearSpells } = useWizardStore();
   const [races, setRaces] = useState<RaceSummary[]>([]);
   const [classes, setClasses] = useState<ClassSummary[]>([]);
+  const [spellConfig, setSpellConfig] = useState<SpellcastingConfig | null>(null);
 
   useEffect(() => {
     api<RaceSummary[]>("/srd/races").then(setRaces).catch(() => {});
     api<ClassSummary[]>("/srd/classes").then(setClasses).catch(() => {});
   }, []);
+
+  // Fetch spellcasting config when class changes
+  useEffect(() => {
+    if (!classIndex) {
+      setSpellConfig(null);
+      return;
+    }
+    clearSpells();
+    api<SpellcastingConfig>(`/srd/classes/${classIndex}/spellcasting`)
+      .then(setSpellConfig)
+      .catch(() => setSpellConfig(null));
+  }, [classIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // For prepared casters (cleric/druid), compute spells from WIS modifier
+  const computedSpellsMax = spellConfig?.spells_known
+    ?? (spellConfig?.caster_type === "prepared"
+      ? Math.max(1, Math.floor((abilities.wisdom - 10) / 2) + 1)
+      : 0);
 
   return (
     <div className="space-y-6">
@@ -81,6 +109,16 @@ export function StepRaceClass() {
           ))}
         </div>
       </div>
+
+      {/* Spell Selection (for caster classes) */}
+      {spellConfig && spellConfig.has_spellcasting && spellConfig.caster_type !== "none" && (
+        <SpellPicker
+          classIndex={classIndex}
+          cantripsMax={spellConfig.cantrips_known}
+          spellsMax={computedSpellsMax}
+          casterType={spellConfig.caster_type as "known" | "prepared"}
+        />
+      )}
     </div>
   );
 }

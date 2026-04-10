@@ -28,6 +28,7 @@ export type WizardState = {
   abilities: AbilityScores;
   scoreMethod: "standard" | "pointbuy" | "roll";
   selectedSkills: string[];
+  selectedCantrips: string[];
   selectedSpells: string[];
 
   // Step 3: Backstory
@@ -40,11 +41,13 @@ export type WizardState = {
   updateField: (field: string, value: unknown) => void;
   updateAbility: (ability: keyof AbilityScores, value: number) => void;
   toggleSkill: (skill: string) => void;
+  toggleCantrip: (cantrip: string) => void;
   toggleSpell: (spell: string) => void;
+  clearSpells: () => void;
   reset: () => void;
 };
 
-const INITIAL: Omit<WizardState, "setStep" | "setCampaignId" | "updateField" | "updateAbility" | "toggleSkill" | "toggleSpell" | "reset"> = {
+const INITIAL: Omit<WizardState, "setStep" | "setCampaignId" | "updateField" | "updateAbility" | "toggleSkill" | "toggleCantrip" | "toggleSpell" | "clearSpells" | "reset"> = {
   step: 0,
   campaignId: "",
   campaignName: "New Adventure",
@@ -59,6 +62,7 @@ const INITIAL: Omit<WizardState, "setStep" | "setCampaignId" | "updateField" | "
   abilities: { strength: 10, dexterity: 10, constitution: 10, intelligence: 10, wisdom: 10, charisma: 10 },
   scoreMethod: "standard",
   selectedSkills: [],
+  selectedCantrips: [],
   selectedSpells: [],
   backstory: "",
   appearance: {},
@@ -78,11 +82,18 @@ export const useWizardStore = create<WizardState>((set) => ({
         ? s.selectedSkills.filter((sk) => sk !== skill)
         : [...s.selectedSkills, skill],
     })),
+  toggleCantrip: (cantrip) =>
+    set((s) => ({
+      selectedCantrips: s.selectedCantrips.includes(cantrip)
+        ? s.selectedCantrips.filter((c) => c !== cantrip)
+        : [...s.selectedCantrips, cantrip],
+    })),
   toggleSpell: (spell) =>
     set((s) => ({
       selectedSpells: s.selectedSpells.includes(spell)
         ? s.selectedSpells.filter((sp) => sp !== spell)
         : [...s.selectedSpells, spell],
     })),
+  clearSpells: () => set({ selectedCantrips: [], selectedSpells: [] }),
   reset: () => set(INITIAL),
 }));

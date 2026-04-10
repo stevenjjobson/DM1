@@ -121,6 +121,56 @@ async def get_class(index: str):
     return result
 
 
+@router.get("/classes/{index}/spellcasting")
+async def get_class_spellcasting(index: str, level: int = 1):
+    """Get spellcasting configuration for a class at a given character level.
+
+    Returns cantrips known, spells known/prepared limits, spell slots, and caster type.
+    """
+    srd = SRDRepository.get()
+    cls = srd.get_class(index)
+    if not cls:
+        return {"has_spellcasting": False}
+
+    if "spellcasting" not in cls:
+        return {"has_spellcasting": False, "caster_type": "none"}
+
+    level_data = srd.get_level_data(index, level)
+    if not level_data or "spellcasting" not in level_data:
+        return {"has_spellcasting": False, "caster_type": "none"}
+
+    sc = level_data["spellcasting"]
+    cantrips = sc.get("cantrips_known", 0) or 0
+    spells_known = sc.get("spells_known")  # None for prepared casters
+    slots = srd.spell_slots_for_class_level(index, level)
+
+    # No cantrips and no slots = no spellcasting at this level (e.g. paladin/ranger at lvl 1)
+    if cantrips == 0 and not slots:
+        return {"has_spellcasting": False, "caster_type": "none"}
+
+    # Determine caster type
+    # "known" casters have spells_known in SRD data (bard, sorcerer, warlock, ranger)
+    # "prepared" casters don't — they prepare from full list (cleric, druid, wizard)
+    if spells_known is not None and spells_known > 0:
+        caster_type = "known"
+    elif index == "wizard":
+        caster_type = "prepared"
+        spells_known = 6  # Wizards start with 6 spells in their spellbook
+    elif index in ("cleric", "druid"):
+        caster_type = "prepared"
+        spells_known = None  # Frontend computes from WIS mod + level
+    else:
+        caster_type = "known"
+
+    return {
+        "has_spellcasting": True,
+        "cantrips_known": cantrips,
+        "spells_known": spells_known,
+        "spell_slots": {str(k): v for k, v in slots.items()},
+        "caster_type": caster_type,
+    }
+
+
 @router.get("/classes/{index}/spells")
 async def get_class_spells(index: str, max_level: int = 1):
     srd = SRDRepository.get()

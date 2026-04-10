@@ -95,7 +95,7 @@ export default function NewCampaignPage() {
           background_index: wizard.backgroundIndex,
           abilities: wizard.abilities,
           selected_skills: wizard.selectedSkills,
-          selected_spells: wizard.selectedSpells,
+          selected_spells: [...wizard.selectedCantrips, ...wizard.selectedSpells],
           backstory: wizard.backstory,
           appearance: wizard.appearance,
         },

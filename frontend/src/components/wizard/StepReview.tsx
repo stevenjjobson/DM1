@@ -39,13 +39,26 @@ export function StepReview() {
         </div>
       </div>
 
+      {state.selectedCantrips.length > 0 && (
+        <div>
+          <h4 className="text-sm font-medium text-neutral-300 mb-2">Cantrips</h4>
+          <div className="flex flex-wrap gap-2">
+            {state.selectedCantrips.map((spell) => (
+              <span key={spell} className="px-2 py-1 bg-neutral-800 border border-amber-700/50 rounded text-xs text-amber-300">
+                {spell.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {state.selectedSpells.length > 0 && (
         <div>
-          <h4 className="text-sm font-medium text-neutral-300 mb-2">Selected Spells</h4>
+          <h4 className="text-sm font-medium text-neutral-300 mb-2">Level 1 Spells</h4>
           <div className="flex flex-wrap gap-2">
             {state.selectedSpells.map((spell) => (
               <span key={spell} className="px-2 py-1 bg-neutral-800 border border-neutral-700 rounded text-xs text-neutral-300">
-                {spell.replace(/-/g, " ")}
+                {spell.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
               </span>
             ))}
           </div>
