@@ -15,26 +15,42 @@ export class ApiError extends Error {
   }
 }
 
-export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = "GET", body, token } = options;
-
+async function doFetch(path: string, method: string, body: unknown, token: string | null | undefined): Promise<Response> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
-
-  const res = await fetch(`${API_BASE}/api${path}`, {
+  return fetch(`${API_BASE}/api${path}`, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
   });
+}
+
+export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { method = "GET", body, token } = options;
+
+  let res = await doFetch(path, method, body, token);
+
+  // On 401, try refreshing the token and retry once
+  if (res.status === 401 && token) {
+    try {
+      const { useAuthStore } = await import("@/stores/auth-store");
+      const refreshed = await useAuthStore.getState().refresh();
+      if (refreshed) {
+        const newToken = useAuthStore.getState().accessToken;
+        res = await doFetch(path, method, body, newToken);
+      }
+    } catch {
+      // Refresh failed — fall through to error handling
+    }
+  }
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: res.statusText }));
     let detail = error.detail || res.statusText;
-    // FastAPI 422 returns detail as an array of validation errors
     if (Array.isArray(detail)) {
       detail = detail.map((e: { msg?: string }) => e.msg || "Validation error").join(". ");
     }
