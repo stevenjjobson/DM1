@@ -145,25 +145,22 @@ async def archivist_node(state: GameState) -> dict:
 def build_gameplay_graph() -> StateGraph:
     """Build the LangGraph workflow for gameplay turns.
 
-    Phase 1C flow:
-      START → orchestrator → context → narrator → archivist → END
-
-    Later phases add conditional routing, NPC agent, storyteller, visual director.
+    Fast path: START → orchestrator → context → narrator → END
+    The Archivist runs as a background task AFTER the response is sent.
+    This cuts response time from ~2min to ~3-5s.
     """
     graph = StateGraph(GameState)
 
-    # Add nodes
+    # Add nodes — Archivist removed from pipeline (runs async post-response)
     graph.add_node("orchestrator", orchestrator_node)
     graph.add_node("context", context_node)
     graph.add_node("narrator", narrator_node)
-    graph.add_node("archivist", archivist_node)
 
-    # Linear flow for Phase 1C
+    # Fast linear flow — narrator output sent immediately
     graph.add_edge(START, "orchestrator")
     graph.add_edge("orchestrator", "context")
     graph.add_edge("context", "narrator")
-    graph.add_edge("narrator", "archivist")
-    graph.add_edge("archivist", END)
+    graph.add_edge("narrator", END)
 
     return graph
 
@@ -187,8 +184,12 @@ def get_gameplay_graph():
 async def run_turn(campaign_id: str, player_action: str, turn_number: int) -> dict:
     """Execute a single gameplay turn through the orchestrator pipeline.
 
-    Returns the final state with narrative, suggested actions, and graph changes.
+    The fast path (orchestrator → context → narrator) runs synchronously.
+    The Archivist runs as a background task after the response is returned,
+    so the player doesn't wait for graph updates.
     """
+    import asyncio
+
     graph = get_gameplay_graph()
 
     initial_state: GameState = {
@@ -206,11 +207,40 @@ async def run_turn(campaign_id: str, player_action: str, turn_number: int) -> di
 
     result = await graph.ainvoke(initial_state)
 
+    narrative = result.get("narrative", "")
+
+    # Fire Archivist as background task — doesn't block the response
+    asyncio.create_task(_run_archivist_background(
+        campaign_id=campaign_id,
+        narrative_text=narrative,
+        player_action=player_action,
+        turn_number=turn_number,
+    ))
+
     return {
-        "narrative": result.get("narrative", ""),
+        "narrative": narrative,
         "suggested_actions": result.get("suggested_actions", []),
         "action_type": result.get("action_type", ""),
-        "graph_changes": result.get("graph_changes", {}),
+        "graph_changes": {},  # Archivist runs async — changes applied in background
         "usage": result.get("narrator_usage", {}),
         "error": result.get("error", ""),
     }
+
+
+async def _run_archivist_background(
+    campaign_id: str,
+    narrative_text: str,
+    player_action: str,
+    turn_number: int,
+):
+    """Background task: Archivist processes narrative and updates the knowledge graph."""
+    try:
+        await process_narrative(
+            campaign_id=campaign_id,
+            narrative_text=narrative_text,
+            player_action=player_action,
+            turn_number=turn_number,
+        )
+        logger.info(f"Archivist background task complete for turn {turn_number}")
+    except Exception as e:
+        logger.error(f"Archivist background task failed: {e}")

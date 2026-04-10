@@ -82,16 +82,19 @@ async def get_inventory(
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
 
-    # Search for items owned by the character
+    # Search specifically for OWNED_BY relationships
     item_edges = await search(
-        "items equipment weapons armor potions owned carried inventory",
-        campaign_id, limit=20
+        "player character owns carries possesses equipped weapon armor",
+        campaign_id, limit=15
     )
 
     items = []
     for edge in item_edges:
-        if any(kw in edge.name.lower() for kw in ["owned", "equipped", "item"]) or \
-           any(kw in edge.fact.lower() for kw in ["owns", "owned", "carries", "equipped", "acquired", "found", "item"]):
+        # Only include edges that indicate ownership or equipment
+        fact_lower = edge.fact.lower()
+        name_lower = edge.name.lower()
+        if name_lower in ("owned_by", "equipped_by") or \
+           any(kw in fact_lower for kw in ["owns", "owned by", "carries", "equipped", "picked up", "acquired"]):
             items.append({
                 "fact": edge.fact,
                 "type": edge.name,
