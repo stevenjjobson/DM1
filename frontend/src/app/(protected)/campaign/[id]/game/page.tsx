@@ -65,14 +65,15 @@ export default function GamePage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Clear stale state and initialize campaign on mount
+  // Initialize campaign on mount
   useEffect(() => {
-    clearMessages();
-
     if (!user || !accessToken) {
       router.push("/login");
       return;
     }
+
+    // Check if messages were pre-populated by the wizard (opening narration)
+    const hasPrePopulated = useGameStore.getState().messages.length > 0;
 
     const init = async () => {
       try {
@@ -88,7 +89,8 @@ export default function GamePage() {
         setTurnNumber(campaign.current_turn);
 
         if (campaign.status === "creating") {
-          // Need to start the campaign (genesis)
+          // Need to start the campaign (genesis) — shouldn't normally happen
+          // since the wizard calls /character/create which runs genesis
           clearMessages();
           setLoading(true);
           addDMMessage("*The world stirs to life...*\n\nGenerating your adventure. This may take a moment.");
@@ -98,52 +100,51 @@ export default function GamePage() {
             { method: "POST", token: accessToken }
           );
 
-          // Remove the loading message and show opening narration
           clearMessages();
           addDMMessage(result.opening_narration);
-          setSuggestions([
-            "Look around",
-            "Talk to someone nearby",
-            "Explore the area",
-          ]);
+          setSuggestions(["Look around", "Talk to someone nearby", "Explore the area"]);
           setInitialized(true);
           setLoading(false);
         } else if (campaign.status === "active") {
-          if (messages.length === 0) {
-            if (campaign.current_turn === 0) {
-              // Brand new adventure — ask DM to set the scene
-              setLoading(true);
-              try {
-                const result = await api<TurnResponse>(
-                  `/gameplay/${campaignId}/turn?action=${encodeURIComponent("Describe where I am and set the scene for my adventure.")}`,
-                  { method: "POST", token: accessToken }
-                );
-                addDMMessage(result.narrative);
-                setSuggestions(result.suggested_actions);
-                setTurnNumber(result.turn);
-              } catch {
-                addDMMessage("*The world takes shape around you...*\n\nYour adventure awaits. What would you like to do?");
-                setSuggestions(["Look around", "Talk to someone nearby", "Explore the area"]);
-              }
-              setLoading(false);
-            } else {
-              // Returning to existing adventure — get AI recap
-              setLoading(true);
-              try {
-                const recap = await api<{ recap: string; turn: number }>(
-                  `/gameplay/${campaignId}/recap`,
-                  { token: accessToken }
-                );
-                addDMMessage(`*When we last left off...*\n\n${recap.recap}`);
-                setTurnNumber(recap.turn);
-              } catch {
-                addDMMessage("*You return to your adventure...*\n\nWelcome back. What would you like to do?");
-              }
-              setSuggestions(["Look around", "Check my inventory", "Continue where I left off"]);
-              setLoading(false);
+          if (hasPrePopulated) {
+            // Wizard pre-populated opening narration — use it directly
+            setInitialized(true);
+          } else if (campaign.current_turn === 0) {
+            // Brand new adventure with no opening narration — ask DM to set the scene
+            clearMessages();
+            setLoading(true);
+            try {
+              const result = await api<TurnResponse>(
+                `/gameplay/${campaignId}/turn?action=${encodeURIComponent("Describe where I am and set the scene for my adventure.")}`,
+                { method: "POST", token: accessToken }
+              );
+              addDMMessage(result.narrative);
+              setSuggestions(result.suggested_actions);
+              setTurnNumber(result.turn);
+            } catch {
+              addDMMessage("*The world takes shape around you...*\n\nYour adventure awaits. What would you like to do?");
+              setSuggestions(["Look around", "Talk to someone nearby", "Explore the area"]);
             }
+            setLoading(false);
+            setInitialized(true);
+          } else {
+            // Returning to existing adventure — get AI recap
+            clearMessages();
+            setLoading(true);
+            try {
+              const recap = await api<{ recap: string; turn: number }>(
+                `/gameplay/${campaignId}/recap`,
+                { token: accessToken }
+              );
+              addDMMessage(`*When we last left off...*\n\n${recap.recap}`);
+              setTurnNumber(recap.turn);
+            } catch {
+              addDMMessage("*You return to your adventure...*\n\nWelcome back. What would you like to do?");
+            }
+            setSuggestions(["Look around", "Check my inventory", "Continue where I left off"]);
+            setLoading(false);
+            setInitialized(true);
           }
-          setInitialized(true);
         }
       } catch (e) {
         if (e instanceof ApiError && e.status === 404) {

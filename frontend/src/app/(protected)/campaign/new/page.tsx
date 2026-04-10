@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 import { useWizardStore } from "@/stores/wizard-store";
 import { useCampaignStore } from "@/stores/campaign-store";
+import { useGameStore } from "@/stores/game-store";
 import { api } from "@/lib/api";
 import { StepTone } from "@/components/wizard/StepTone";
 import { StepAbilities } from "@/components/wizard/StepAbilities";
@@ -101,7 +102,13 @@ export default function NewCampaignPage() {
         },
       });
 
-      // 3. Navigate to the game
+      // 3. Pre-populate game store with opening narration so game page doesn't re-init
+      const gameStore = useGameStore.getState();
+      gameStore.clearMessages();
+      gameStore.addDMMessage(result.opening_narration);
+      gameStore.setSuggestions(["Look around", "Talk to someone nearby", "Explore the area"]);
+
+      // 4. Navigate to the game
       router.push(`/campaign/${campaign.id}/game`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");

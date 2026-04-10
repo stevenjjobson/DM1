@@ -46,10 +46,22 @@ async def get_character_sheet(
     if not character_data and campaign.get("character_attrs"):
         character_data = campaign["character_attrs"]
 
-    # Get related facts from graph search
+    # Get character-specific facts from graph search
+    char_name = character_data.get("name", "player")
     graph_facts = []
     try:
-        graph_facts = await search("player character stats equipment location", campaign_id, limit=8)
+        results = await search(
+            f"{char_name} character owns carries located at visited discovered",
+            campaign_id, limit=15
+        )
+        # Filter to facts that mention the character or player directly
+        char_keywords = [char_name.lower(), "player", "adventurer", "you"]
+        for edge in results:
+            fact_lower = edge.fact.lower()
+            if any(kw in fact_lower for kw in char_keywords):
+                graph_facts.append(edge)
+                if len(graph_facts) >= 6:
+                    break
     except Exception:
         pass
 
