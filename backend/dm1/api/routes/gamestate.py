@@ -156,17 +156,30 @@ async def get_quest_log(
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
 
-    # Search for quest-related facts
+    # Search specifically for quest structure edges
     quest_edges = await search(
-        "quests objectives goals missions tasks quest given find rescue",
-        campaign_id, limit=20
+        "quest objective mission task goal given by",
+        campaign_id, limit=15
     )
 
     active_quests = []
     completed_quests = []
+    seen = set()
     for edge in quest_edges:
-        quest_item = {"fact": edge.fact, "type": edge.name, "uuid": edge.uuid}
-        if "completed" in edge.fact.lower() or "finished" in edge.fact.lower():
+        # Only include quest-related edges, deduplicate by fact
+        name_lower = edge.name.lower()
+        fact_lower = edge.fact.lower()
+        if name_lower not in ("has_objective", "given_by") and \
+           not any(kw in fact_lower for kw in ["quest", "objective", "mission", "find", "retrieve", "rescue", "investigate"]):
+            continue
+        # Deduplicate similar facts
+        short = fact_lower[:60]
+        if short in seen:
+            continue
+        seen.add(short)
+
+        quest_item = {"fact": edge.fact, "type": edge.name}
+        if "completed" in fact_lower or "finished" in fact_lower:
             completed_quests.append(quest_item)
         else:
             active_quests.append(quest_item)
