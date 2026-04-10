@@ -38,7 +38,17 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git status:*)",
-      "Bash(git diff:*)"
+      "Bash(git diff:*)",
+      "Bash(curl -s -X POST http://localhost:8080/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"test@example.com\",\"password\":\"testpass123\"}')",
+      "Bash(mkdir -p \"c:/Users/steve/OneDrive/Documents/Development/DM1/srd-data\")",
+      "Bash(curl -sL \"https://raw.githubusercontent.com/5e-bits/5e-database/main/src/2014/5e-SRD-Ability-Scores.json\" -o 5e-SRD-Ability-Scores.json)",
+      "Bash(curl -sL \"https://raw.githubusercontent.com/5e-bits/5e-database/main/src/2014/5e-SRD-Classes.json\" -o 5e-SRD-Classes.json)",
+      "Bash(curl -sL \"https://raw.githubusercontent.com/5e-bits/5e-database/main/src/2014/5e-SRD-Races.json\" -o 5e-SRD-Races.json)",
+      "Bash(curl -sL \"https://raw.githubusercontent.com/5e-bits/5e-database/main/src/2014/5e-SRD-Spells.json\" -o 5e-SRD-Spells.json)",
+      "Bash(ssh dm1-vps:*)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\steve\\OneDrive\\Documents\\Development\\DM1\\frontend\\src\\app\\(protected)\\campaign\\[id]"
     ]
   },
   "hooks": {
