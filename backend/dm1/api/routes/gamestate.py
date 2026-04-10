@@ -140,38 +140,72 @@ async def get_spellbook(
     user_id: str = Depends(get_current_user_id),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
-    """Get the character's spellbook from the knowledge graph."""
+    """Get the character's spellbook from character attrs + knowledge graph."""
     campaign = await db.campaigns.find_one({"_id": ObjectId(campaign_id), "user_id": user_id})
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
 
-    # Get spell slots from character node
-    character_id = campaign.get("character_id")
-    spell_slots = {}
-    if character_id:
-        node = await get_node_by_uuid(character_id)
-        if node and node.attributes:
-            spell_slots = node.attributes.get("spell_slots", {})
+    character_attrs = campaign.get("character_attrs", {})
 
-    # Search for known spells
-    spell_edges = await search(
-        "spells known prepared cantrips magic arcane divine",
-        campaign_id, limit=20
-    )
+    # Spell slots from character attrs (most reliable) or graph node
+    spell_slots = character_attrs.get("spell_slots", {})
+    if not spell_slots:
+        character_id = campaign.get("character_id")
+        if character_id:
+            try:
+                node = await get_node_by_uuid(character_id)
+                if node and node.attributes:
+                    spell_slots = node.attributes.get("spell_slots", {})
+            except Exception:
+                pass
+
+    # Build spell list from stored cantrips + spells (set at character creation)
+    srd = None
+    try:
+        from dm1.rules.srd_repository import SRDRepository
+        srd = SRDRepository.get()
+    except Exception:
+        pass
+
+    cantrips = []
+    for spell_index in character_attrs.get("known_cantrips", []):
+        spell_data = srd.get_spell(spell_index) if srd else None
+        cantrips.append({
+            "index": spell_index,
+            "name": spell_data["name"] if spell_data else spell_index.replace("-", " ").title(),
+            "level": 0,
+            "school": spell_data.get("school", {}).get("name", "") if spell_data else "",
+        })
 
     spells = []
-    for edge in spell_edges:
-        if any(kw in edge.fact.lower() for kw in ["spell", "cantrip", "knows", "prepared", "cast"]):
-            spells.append({
-                "fact": edge.fact,
-                "type": edge.name,
-                "uuid": edge.uuid,
-            })
+    for spell_index in character_attrs.get("known_spells", []):
+        spell_data = srd.get_spell(spell_index) if srd else None
+        spells.append({
+            "index": spell_index,
+            "name": spell_data["name"] if spell_data else spell_index.replace("-", " ").title(),
+            "level": spell_data.get("level", 1) if spell_data else 1,
+            "school": spell_data.get("school", {}).get("name", "") if spell_data else "",
+        })
+
+    # Also check graph for spells acquired during play
+    try:
+        spell_edges = await search(
+            "learned spell acquired new cantrip",
+            campaign_id, limit=10
+        )
+        seen = {s["index"] for s in cantrips + spells}
+        for edge in spell_edges:
+            if any(kw in edge.fact.lower() for kw in ["learned", "acquired", "new spell"]):
+                if edge.fact not in seen:
+                    spells.append({"index": "", "name": edge.fact, "level": -1, "school": ""})
+    except Exception:
+        pass
 
     return {
+        "cantrips": cantrips,
         "spells": spells,
         "spell_slots": spell_slots,
-        "total": len(spells),
+        "total": len(cantrips) + len(spells),
     }
 
 

@@ -145,13 +145,21 @@ function InventoryPanel({ campaignId }: { campaignId: string }) {
   );
 }
 
+type SpellEntry = { index: string; name: string; level: number; school: string };
+type SpellbookData = {
+  cantrips: SpellEntry[];
+  spells: SpellEntry[];
+  spell_slots: Record<string, { max: number; current: number }>;
+  total: number;
+};
+
 function SpellbookPanel({ campaignId }: { campaignId: string }) {
   const { accessToken } = useAuthStore();
-  const [data, setData] = useState<{ spells: { fact: string }[]; spell_slots: Record<string, { max: number; current: number }> } | null>(null);
+  const [data, setData] = useState<SpellbookData | null>(null);
 
   useEffect(() => {
     if (accessToken) {
-      api(`/gamestate/${campaignId}/spellbook`, { token: accessToken }).then(setData as any).catch(() => {});
+      api<SpellbookData>(`/gamestate/${campaignId}/spellbook`, { token: accessToken }).then(setData).catch(() => {});
     }
   }, [campaignId, accessToken]);
 
@@ -183,19 +191,42 @@ function SpellbookPanel({ campaignId }: { campaignId: string }) {
         </div>
       )}
 
-      {data && data.spells.length > 0 ? (
-        <div className="space-y-1">
-          {data.spells.map((spell, i) => (
-            <div key={i} className="bg-neutral-800 rounded px-3 py-2">
-              <span className="text-sm text-neutral-200">{spell.fact}</span>
-            </div>
-          ))}
+      {/* Cantrips */}
+      {data && data.cantrips.length > 0 && (
+        <div>
+          <div className="text-xs text-neutral-500 font-semibold mb-1">Cantrips</div>
+          <div className="space-y-1">
+            {data.cantrips.map((spell) => (
+              <div key={spell.index} className="bg-neutral-800 rounded px-3 py-2 flex items-center justify-between">
+                <span className="text-sm text-amber-300">{spell.name}</span>
+                <span className="text-[10px] text-neutral-500">{spell.school}</span>
+              </div>
+            ))}
+          </div>
         </div>
-      ) : (
+      )}
+
+      {/* Leveled Spells */}
+      {data && data.spells.length > 0 ? (
+        <div>
+          <div className="text-xs text-neutral-500 font-semibold mb-1">Spells</div>
+          <div className="space-y-1">
+            {data.spells.map((spell, i) => (
+              <div key={spell.index || i} className="bg-neutral-800 rounded px-3 py-2 flex items-center justify-between">
+                <span className="text-sm text-neutral-200">{spell.name}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-neutral-500">{spell.school}</span>
+                  {spell.level > 0 && <span className="text-[10px] text-neutral-600">Lvl {spell.level}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : data && data.cantrips.length === 0 ? (
         <div className="text-sm text-neutral-500 py-4 text-center">
           No spells known yet.
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
