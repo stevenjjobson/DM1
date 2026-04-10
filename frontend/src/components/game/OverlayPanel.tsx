@@ -85,20 +85,20 @@ function CharacterPanel({ campaignId }: { campaignId: string }) {
 
       {/* HP / AC / Speed / Hit Dice */}
       <div className="grid grid-cols-4 gap-2">
-        <div className="bg-neutral-800 rounded-lg p-2 text-center">
-          <div className="text-xs text-neutral-500">HP</div>
+        <div className="bg-neutral-800 border border-neutral-700/50 rounded-lg p-2 text-center">
+          <div className="text-xs text-neutral-500 font-semibold">HP</div>
           <div className="text-lg font-bold text-red-400">{data.hp}/{data.max_hp}</div>
         </div>
-        <div className="bg-neutral-800 rounded-lg p-2 text-center">
-          <div className="text-xs text-neutral-500">AC</div>
+        <div className="bg-neutral-800 border border-neutral-700/50 rounded-lg p-2 text-center">
+          <div className="text-xs text-neutral-500 font-semibold">AC</div>
           <div className="text-lg font-bold text-blue-400">{data.ac}</div>
         </div>
-        <div className="bg-neutral-800 rounded-lg p-2 text-center">
-          <div className="text-xs text-neutral-500">Speed</div>
+        <div className="bg-neutral-800 border border-neutral-700/50 rounded-lg p-2 text-center">
+          <div className="text-xs text-neutral-500 font-semibold">Speed</div>
           <div className="text-lg font-bold text-green-400">{data.speed}ft</div>
         </div>
-        <div className="bg-neutral-800 rounded-lg p-2 text-center">
-          <div className="text-xs text-neutral-500">Hit Dice</div>
+        <div className="bg-neutral-800 border border-neutral-700/50 rounded-lg p-2 text-center">
+          <div className="text-xs text-neutral-500 font-semibold">Hit Dice</div>
           <div className="text-sm font-bold text-purple-400">{data.hit_dice}</div>
         </div>
       </div>
@@ -121,18 +121,18 @@ function CharacterPanel({ campaignId }: { campaignId: string }) {
 
       {/* Proficiency Bonus + Background */}
       <div className="flex gap-3">
-        <div className="bg-neutral-800 rounded-lg px-3 py-2 flex-1">
-          <div className="text-xs text-neutral-500">Proficiency</div>
+        <div className="bg-neutral-800 border border-neutral-700/50 rounded-lg px-3 py-2 flex-1">
+          <div className="text-xs text-neutral-500 font-semibold">Proficiency</div>
           <div className="text-sm font-bold text-amber-400">+{data.proficiency_bonus}</div>
         </div>
         {data.background && (
-          <div className="bg-neutral-800 rounded-lg px-3 py-2 flex-1">
-            <div className="text-xs text-neutral-500">Background</div>
+          <div className="bg-neutral-800 border border-neutral-700/50 rounded-lg px-3 py-2 flex-1">
+            <div className="text-xs text-neutral-500 font-semibold">Background</div>
             <div className="text-sm font-medium text-neutral-300 capitalize">{data.background}</div>
           </div>
         )}
-        <div className="bg-neutral-800 rounded-lg px-3 py-2 flex-1">
-          <div className="text-xs text-neutral-500">XP</div>
+        <div className="bg-neutral-800 border border-neutral-700/50 rounded-lg px-3 py-2 flex-1">
+          <div className="text-xs text-neutral-500 font-semibold">XP</div>
           <div className="text-sm font-medium text-neutral-300">{data.xp}</div>
         </div>
       </div>
@@ -245,7 +245,7 @@ function InventoryPanel({ campaignId }: { campaignId: string }) {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {item.weight > 0 && <span className="text-[10px] text-neutral-600">{item.weight}lb</span>}
+                        {item.weight > 0 && <span className="text-[10px] text-neutral-500">{item.weight}lb</span>}
                         {item.quantity > 1 && <span className="text-xs text-neutral-500">x{item.quantity}</span>}
                         {item.source === "found" && <span className="text-[10px] text-amber-600">new</span>}
                       </div>
@@ -336,7 +336,7 @@ function SpellbookPanel({ campaignId }: { campaignId: string }) {
                 <span className="text-sm text-neutral-200">{spell.name}</span>
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] text-neutral-500">{spell.school}</span>
-                  {spell.level > 0 && <span className="text-[10px] text-neutral-600">Lvl {spell.level}</span>}
+                  {spell.level > 0 && <span className="text-[10px] text-neutral-500">Lvl {spell.level}</span>}
                 </div>
               </div>
             ))}
@@ -411,9 +411,9 @@ export function OverlayPanel({
 }) {
   return (
     <div className="absolute inset-x-0 bottom-0 top-16 bg-neutral-900/95 backdrop-blur-sm z-20 overflow-y-auto">
-      <div className="max-w-2xl mx-auto px-4 py-4">
+      <div className="max-w-2xl mx-auto px-4 py-4 pb-8">
         <div className="flex justify-end mb-4">
-          <button onClick={onClose} className="text-neutral-400 hover:text-white text-sm px-2 py-1">
+          <button onClick={onClose} className="text-neutral-400 hover:text-white text-sm px-2 py-1 transition-colors rounded hover:bg-neutral-800">
             Close ✕
           </button>
         </div>

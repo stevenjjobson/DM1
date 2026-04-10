@@ -34,11 +34,14 @@ async def get_character_sheet(
 
     # Try to load character node from graph
     character_data = {}
+    graph_node_name = None
     if character_id:
         try:
             node = await get_node_by_uuid(character_id)
-            if node and node.attributes:
-                character_data = node.attributes
+            if node:
+                graph_node_name = node.name  # Graphiti node name (character name)
+                if node.attributes:
+                    character_data = node.attributes
         except Exception:
             pass
 
@@ -81,7 +84,7 @@ async def get_character_sheet(
     hit_dice_total = character_data.get("hit_dice_total", level)
 
     return {
-        "name": character_data.get("name", campaign.get("name", "Adventurer")),
+        "name": character_data.get("name") or graph_node_name or campaign.get("name", "Adventurer"),
         "race": character_data.get("race", "Unknown"),
         "class": character_data.get("char_class", "Unknown"),
         "level": level,
