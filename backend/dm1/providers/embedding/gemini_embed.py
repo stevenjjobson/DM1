@@ -33,7 +33,7 @@ async def embed_text(text: str, dimensions: int = 768) -> list[float]:
     """
     client = _get_client()
     response = client.models.embed_content(
-        model="gemini-embedding-exp-03-07",  # Latest embedding model
+        model="gemini-embedding-001",
         contents=text,
         config=types.EmbedContentConfig(output_dimensionality=dimensions),
     )
@@ -44,7 +44,7 @@ async def embed_texts(texts: list[str], dimensions: int = 768) -> list[list[floa
     """Batch embed multiple texts."""
     client = _get_client()
     response = client.models.embed_content(
-        model="gemini-embedding-exp-03-07",
+        model="gemini-embedding-001",
         contents=texts,
         config=types.EmbedContentConfig(output_dimensionality=dimensions),
     )

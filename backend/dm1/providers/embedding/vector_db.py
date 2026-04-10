@@ -59,7 +59,7 @@ async def create_campaign_collection(campaign_id: str) -> None:
     await client.create_collection(
         collection_name=name,
         vectors_config={
-            "fast": VectorParams(size=768, distance=Distance.COSINE),
+            "fast": VectorParams(size=1024, distance=Distance.COSINE),
         },
     )
     logger.info(f"Created Qdrant collection: {name}")

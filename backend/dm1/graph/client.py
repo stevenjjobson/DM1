@@ -53,6 +53,7 @@ async def _create_graphiti() -> Graphiti:
             embedder = GeminiEmbedder(
                 config=GeminiEmbedderConfig(
                     api_key=settings.gemini_api_key,
+                    embedding_model="gemini-embedding-001",
                 )
             )
             cross_encoder = GeminiRerankerClient()
@@ -113,12 +114,21 @@ async def create_node(
         graphiti = await get_graphiti()
         labels = [node_type.value]
 
+        # Pre-embed the node name (required by Graphiti's save() → setNodeVectorProperty)
+        name_embedding = None
+        if graphiti.embedder:
+            try:
+                name_embedding = await graphiti.embedder.create(name)
+            except Exception as e:
+                logger.warning(f"Failed to embed node name '{name}': {e}")
+
         node = EntityNode(
             name=name,
             labels=labels,
             summary=summary or f"{node_type.value}: {name}",
             attributes=attributes,
             group_id=group_id,
+            name_embedding=name_embedding,
         )
         await node.save(graphiti.driver)
         logger.info(f"Created node: {node_type.value}/{name} in group {group_id}")
@@ -173,11 +183,21 @@ async def create_edge(
     import uuid as uuid_mod
     now = datetime.now(timezone.utc)
 
+    # Pre-embed the fact
+    fact_embedding = None
+    try:
+        graphiti = await get_graphiti()
+        if graphiti.embedder:
+            fact_embedding = await graphiti.embedder.create(fact)
+    except Exception as e:
+        logger.warning(f"Failed to embed edge fact: {e}")
+
     edge = EntityEdge(
         source_node_uuid=source_uuid,
         target_node_uuid=target_uuid,
         name=edge_type.value,
         fact=fact,
+        fact_embedding=fact_embedding,
         group_id=group_id,
         created_at=now,
         valid_at=now if edge_type in TEMPORAL_EDGES else None,
