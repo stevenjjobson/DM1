@@ -59,6 +59,14 @@ async def start_campaign(
         "proficiency_bonus": 2,
         "abilities": {"strength": 15, "dexterity": 13, "constitution": 14,
                       "intelligence": 10, "wisdom": 12, "charisma": 8},
+        "equipment": [
+            {"name": "Chain Mail", "index": "chain-mail", "quantity": 1},
+            {"name": "Longsword", "index": "longsword", "quantity": 1},
+            {"name": "Shield", "index": "shield", "quantity": 1},
+            {"name": "Handaxe", "index": "handaxe", "quantity": 2},
+            {"name": "Explorer's Pack", "index": "explorers-pack", "quantity": 1},
+            {"name": "Gold Pieces", "index": "gp", "quantity": 15},
+        ],
     }
 
     # Generate world

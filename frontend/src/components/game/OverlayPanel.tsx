@@ -111,7 +111,7 @@ function CharacterPanel({ campaignId }: { campaignId: string }) {
 
 function InventoryPanel({ campaignId }: { campaignId: string }) {
   const { accessToken } = useAuthStore();
-  const [data, setData] = useState<{ items: { fact: string; type: string }[]; total: number } | null>(null);
+  const [data, setData] = useState<{ items: { name: string; quantity: number; source: string }[]; total: number } | null>(null);
 
   useEffect(() => {
     if (accessToken) {
@@ -125,9 +125,14 @@ function InventoryPanel({ campaignId }: { campaignId: string }) {
       {data && data.items.length > 0 ? (
         <div className="space-y-1">
           {data.items.map((item, i) => (
-            <div key={i} className="flex items-center gap-2 bg-neutral-800 rounded px-3 py-2">
-              <span className="text-neutral-500">📦</span>
-              <span className="text-sm text-neutral-200">{item.fact}</span>
+            <div key={i} className="flex items-center justify-between bg-neutral-800 rounded px-3 py-2">
+              <div className="flex items-center gap-2">
+                <span className="text-neutral-500">{item.source === "found" ? "✨" : "📦"}</span>
+                <span className="text-sm text-neutral-200">{item.name}</span>
+              </div>
+              {item.quantity > 1 && (
+                <span className="text-xs text-neutral-500">x{item.quantity}</span>
+              )}
             </div>
           ))}
         </div>

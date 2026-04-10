@@ -93,24 +93,43 @@ async def get_inventory(
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
 
-    # Search specifically for OWNED_BY relationships
-    item_edges = await search(
-        "player character owns carries possesses equipped weapon armor",
-        campaign_id, limit=15
-    )
+    # Get starting equipment from campaign data (reliable fallback)
+    character_attrs = campaign.get("character_attrs", {})
+    stored_equipment = character_attrs.get("equipment", [])
 
     items = []
-    for edge in item_edges:
-        # Only include edges that indicate ownership or equipment
-        fact_lower = edge.fact.lower()
-        name_lower = edge.name.lower()
-        if name_lower in ("owned_by", "equipped_by") or \
-           any(kw in fact_lower for kw in ["owns", "owned by", "carries", "equipped", "picked up", "acquired"]):
+    seen_names = set()
+
+    # First: show stored starting equipment
+    for equip in stored_equipment:
+        name = equip.get("name", "Unknown")
+        qty = equip.get("quantity", 1)
+        if name not in seen_names:
+            seen_names.add(name)
             items.append({
-                "fact": edge.fact,
-                "type": edge.name,
-                "uuid": edge.uuid,
+                "name": name,
+                "quantity": qty,
+                "source": "starting",
             })
+
+    # Then: add any items found in the knowledge graph (acquired during play)
+    try:
+        item_edges = await search(
+            "player owns carries acquired found picked up",
+            campaign_id, limit=10
+        )
+        for edge in item_edges:
+            fact_lower = edge.fact.lower()
+            if any(kw in fact_lower for kw in ["owns", "owned", "acquired", "picked up", "found", "received"]):
+                # Avoid duplicating starting equipment
+                if not any(s.lower() in fact_lower for s in seen_names):
+                    items.append({
+                        "name": edge.fact,
+                        "quantity": 1,
+                        "source": "found",
+                    })
+    except Exception:
+        pass
 
     return {"items": items, "total": len(items)}
 

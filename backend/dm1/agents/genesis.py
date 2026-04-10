@@ -96,10 +96,14 @@ async def generate_world(
     }
     tone_desc = tone_descriptions.get(tone, "A classic fantasy adventure.")
 
-    prompt = f"""Campaign: {campaign_name}
+    prompt = f"""Campaign Name: "{campaign_name}"
 Tone: {tone_desc}
 Player Character: {character_name}, a {character_race} {character_class}
 World Setting: {world_setting}
+
+IMPORTANT: The campaign name "{campaign_name}" is a creative seed — use it to inspire
+the world's theme, location names, central conflict, or atmosphere. The name should
+feel like it belongs in this world.
 
 Generate the starting world. Make it immediately playable — the player should have
 something interesting to do from the very first turn."""

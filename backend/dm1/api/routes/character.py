@@ -13,6 +13,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel, Field
 
 from dm1.api.database import get_database
+from dm1.graph.mutations import give_item_to_character
 from dm1.api.middleware.auth import get_current_user_id
 from dm1.models.campaign import CampaignStatus
 from dm1.rules.dice import ability_modifier, proficiency_bonus, validate_point_buy
@@ -221,6 +222,10 @@ async def create_character(
             for lvl, count in slots.items()
         }
 
+    # Build starting equipment from SRD class data
+    starting_items = _get_starting_equipment(srd, body.class_index)
+    character_attributes["equipment"] = starting_items
+
     # Generate world and create character in knowledge graph
     from dm1.agents.genesis import generate_world, populate_knowledge_graph
 
@@ -252,9 +257,80 @@ async def create_character(
         }},
     )
 
+    # Create starting equipment as graph nodes
+    import asyncio
+    asyncio.create_task(_create_equipment_nodes(
+        starting_items, created["character_uuid"], body.campaign_id
+    ))
+
     return {
         "character_uuid": created["character_uuid"],
         "opening_narration": world.opening_narration,
         "locations_created": len(created["locations"]),
         "npcs_created": len(created["npcs"]),
     }
+
+
+def _get_starting_equipment(srd: SRDRepository, class_index: str) -> list[dict]:
+    """Get default starting equipment for a class from SRD data."""
+    cls = srd.get_class(class_index)
+    if not cls:
+        return []
+
+    items = []
+    # Fixed starting equipment
+    for entry in cls.get("starting_equipment", []):
+        equip = entry.get("equipment", {})
+        items.append({
+            "name": equip.get("name", "Unknown item"),
+            "index": equip.get("index", ""),
+            "quantity": entry.get("quantity", 1),
+        })
+
+    # If no fixed equipment, build defaults from the first option of each choice
+    if not items:
+        for option_set in cls.get("starting_equipment_options", []):
+            options = option_set.get("from", {}).get("options", [])
+            if options:
+                first = options[0]
+                if first.get("option_type") == "counted_reference":
+                    equip = first.get("of", {})
+                    items.append({
+                        "name": equip.get("name", "Equipment"),
+                        "index": equip.get("index", ""),
+                        "quantity": first.get("count", 1),
+                    })
+                elif first.get("option_type") == "multiple":
+                    for sub in first.get("items", []):
+                        equip = sub.get("of", sub.get("option", {}))
+                        items.append({
+                            "name": equip.get("name", "Equipment"),
+                            "index": equip.get("index", ""),
+                            "quantity": sub.get("count", 1),
+                        })
+
+    # Always include an explorer's pack and gold
+    if not any(i["name"].lower() == "explorer's pack" for i in items):
+        items.append({"name": "Explorer's Pack", "index": "explorers-pack", "quantity": 1})
+    items.append({"name": "Gold Pieces", "index": "gp", "quantity": 15})
+
+    return items
+
+
+async def _create_equipment_nodes(items: list[dict], character_uuid: str, campaign_id: str):
+    """Background task: create item nodes in the knowledge graph."""
+    try:
+        for item in items:
+            await give_item_to_character(
+                item_name=item["name"],
+                item_attributes={
+                    "item_type": "equipment",
+                    "quantity": item.get("quantity", 1),
+                    "description": item["name"],
+                },
+                character_uuid=character_uuid,
+                group_id=campaign_id,
+            )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Failed to create equipment nodes: {e}")
