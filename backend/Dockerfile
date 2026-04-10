@@ -10,14 +10,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install uv for fast dependency resolution
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Copy dependency files first (layer caching)
+# Copy backend code
 COPY backend/pyproject.toml ./
-
-# Install dependencies
-RUN uv pip install --system -e "."
-
-# Copy application code
 COPY backend/dm1/ dm1/
+
+# Install dependencies (non-editable for Docker)
+RUN uv pip install --system "."
 
 # Copy SRD data
 COPY srd-data/ /app/srd-data/
