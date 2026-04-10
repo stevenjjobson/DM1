@@ -8,6 +8,8 @@ import { api, ApiError } from "@/lib/api";
 import { ChatMessage } from "@/components/game/ChatMessage";
 import { SuggestedActions } from "@/components/game/SuggestedActions";
 import { ActionInput } from "@/components/game/ActionInput";
+import { BottomNav } from "@/components/game/BottomNav";
+import { OverlayPanel } from "@/components/game/OverlayPanel";
 
 type StartResponse = {
   opening_narration: string;
@@ -45,6 +47,11 @@ export default function GamePage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [campaignName, setCampaignName] = useState("Adventure");
   const [initialized, setInitialized] = useState(false);
+  const [activePanel, setActivePanel] = useState<string | null>(null);
+
+  const togglePanel = (panel: string) => {
+    setActivePanel(activePanel === panel ? null : panel);
+  };
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -195,6 +202,18 @@ export default function GamePage() {
 
       {/* Input */}
       <ActionInput onSubmit={handleAction} disabled={isLoading} />
+
+      {/* Bottom Nav */}
+      <BottomNav activePanel={activePanel} onToggle={togglePanel} />
+
+      {/* Overlay Panel */}
+      {activePanel && (
+        <OverlayPanel
+          panel={activePanel}
+          campaignId={campaignId}
+          onClose={() => setActivePanel(null)}
+        />
+      )}
     </div>
   );
 }

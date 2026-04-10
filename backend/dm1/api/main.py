@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from dm1.api.database import close_database, get_database
-from dm1.api.routes import auth, campaigns, character, gameplay, llm, srd
+from dm1.api.routes import auth, campaigns, character, gameplay, gamestate, llm, srd
 from dm1.config.settings import settings
 
 
@@ -39,6 +39,7 @@ def create_app() -> FastAPI:
     app.include_router(gameplay.router, prefix="/api")
     app.include_router(srd.router, prefix="/api")
     app.include_router(character.router, prefix="/api")
+    app.include_router(gamestate.router, prefix="/api")
 
     @app.get("/api/health")
     async def health():
