@@ -99,7 +99,19 @@ export const useAuthStore = create<AuthState>()(persist((set, get) => ({
     accessToken: state.accessToken,
     refreshToken: state.refreshToken,
   }),
-  onRehydrateStorage: () => () => {
-    useAuthStore.setState({ _hasHydrated: true });
+  onRehydrateStorage: () => {
+    return () => {
+      useAuthStore.setState({ _hasHydrated: true });
+    };
   },
 }));
+
+// Fallback: if onRehydrateStorage doesn't fire (e.g. no persisted data),
+// set hydrated after a tick
+if (typeof window !== "undefined") {
+  setTimeout(() => {
+    if (!useAuthStore.getState()._hasHydrated) {
+      useAuthStore.setState({ _hasHydrated: true });
+    }
+  }, 100);
+}
