@@ -1,0 +1,58 @@
+[project]
+name = "dm1"
+version = "0.1.0"
+description = "DungeonMasterONE - AI-Powered Dungeon Master Application"
+requires-python = ">=3.12"
+dependencies = [
+    # Web framework
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "websockets>=14.0",
+    # Auth
+    "python-jose[cryptography]>=3.3",
+    "bcrypt>=4.0",
+    # Database
+    "motor>=3.6",              # Async MongoDB driver
+    "neo4j>=5.26",
+    # Knowledge graph
+    "graphiti-core[google-genai]>=0.28",
+    # Agent orchestration
+    "langgraph>=1.1",
+    "langgraph-checkpoint-mongodb>=0.3",
+    # LLM providers
+    "google-genai>=1.0",
+    "httpx>=0.28",
+    # Vector DB
+    "qdrant-client>=1.17",
+    # Data validation
+    "pydantic>=2.7",
+    "pydantic-settings>=2.0",
+    # Utilities
+    "python-dotenv>=1.0",
+    "python-multipart>=0.0.17",
+    "email-validator>=2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "httpx>=0.28",  # For TestClient
+    "ruff>=0.8",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]

@@ -1,0 +1,56 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__forgentt__discover",
+      "mcp__forgentt__search",
+      "mcp__forgentt__list",
+      "mcp__forgentt__read",
+      "mcp__forgentt__get_portfolio",
+      "mcp__forgentt__get_project",
+      "mcp__forgentt__import_plan",
+      "mcp__forgentt__ingest_feed",
+      "mcp__forgentt__create_file",
+      "mcp__forgentt__update_file",
+      "mcp__forgentt__delete_file",
+      "mcp__forgentt__rename_file",
+      "mcp__forgentt__move_file",
+      "mcp__forgentt__create_category",
+      "mcp__forgentt__delete_category",
+      "mcp__forgentt__create_portfolio",
+      "mcp__forgentt__modify_portfolio",
+      "mcp__forgentt__list_templates",
+      "mcp__forgentt__create_template",
+      "mcp__forgentt__update_template",
+      "mcp__forgentt__delete_template",
+      "mcp__forgentt__create_project",
+      "mcp__forgentt__import_project",
+      "mcp__forgentt__get_quality",
+      "mcp__forgentt__get_broken_references",
+      "mcp__forgentt__get_backlinks",
+      "mcp__forgentt__get_schema",
+      "mcp__forgentt__create_from_template",
+      "mcp__forgentt__fix_reference",
+      "mcp__forgentt__store_context",
+      "mcp__forgentt__update_requirement",
+      "mcp__forgentt__sync_agents",
+      "mcp__forgentt__sync_skills",
+      "mcp__forgentt__scaffold_claude_code",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)"
+    ]
+  },
+  "hooks": {
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo BEFORE COMPACTING: Call import_plan to archive any approved plan. Call update_requirement if a requirement file scope shifted. Commit any uncommitted work."
+          }
+        ]
+      }
+    ]
+  }
+}

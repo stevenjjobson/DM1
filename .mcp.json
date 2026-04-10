@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "forgentt": {
+      "command": "node",
+      "args": [
+        "C:\\\\Users\\\\steve\\\\OneDrive\\\\Documents\\\\Development\\\\ForgeNTT\\\\mcp-server\\\\dist\\\\index.js"
+      ]
+    }
+  }
+}
