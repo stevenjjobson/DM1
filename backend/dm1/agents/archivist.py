@@ -95,6 +95,12 @@ async def process_narrative(
     except Exception as e:
         logger.error(f"Failed to record turn event: {e}")
 
+    # 5. Update scene state for narrator continuity
+    try:
+        await _update_scene_state(campaign_id, narrative_text, player_action)
+    except Exception as e:
+        logger.error(f"Failed to update scene state: {e}")
+
     return changes
 
 
@@ -201,3 +207,59 @@ async def _apply_state_change(change: dict, campaign_id: str, turn_number: int):
 
         case _:
             logger.info(f"Unhandled state change type: {change_type}")
+
+
+SCENE_EXTRACTION_PROMPT = """Analyze this D&D narrative and extract the current scene state. Return JSON only.
+
+{
+  "location": "name of the current location the player is in",
+  "description": "1-sentence description of the location",
+  "npcs_present": ["list", "of", "NPC", "names", "currently", "in", "scene"],
+  "atmosphere": "one word: calm, tense, dangerous, mysterious, festive, eerie",
+  "summary": "2-3 sentence summary of what just happened this turn"
+}"""
+
+
+async def _update_scene_state(campaign_id: str, narrative_text: str, player_action: str):
+    """Extract scene state from narrative and persist to MongoDB for turn continuity."""
+    from bson import ObjectId
+    from dm1.api.database import get_database
+
+    router = get_llm_router()
+
+    response = await router.generate(
+        messages=[
+            LLMMessage(role="system", content=SCENE_EXTRACTION_PROMPT),
+            LLMMessage(role="user", content=f"Narrative:\n{narrative_text[:1500]}\n\nPlayer action: {player_action}"),
+        ],
+        model_role=ModelRole.AGENT,
+        temperature=0.1,
+        max_tokens=300,
+    )
+
+    try:
+        # Parse JSON from response (strip markdown fences if present)
+        text = response.content.strip()
+        if text.startswith("```"):
+            text = text.split("\n", 1)[1].rsplit("```", 1)[0]
+        scene_data = json.loads(text)
+    except (json.JSONDecodeError, IndexError):
+        # Fallback: store just the narrative summary
+        scene_data = {"summary": narrative_text[:300]}
+        logger.warning("Failed to parse scene extraction, using fallback")
+
+    scene = {
+        "location": scene_data.get("location", ""),
+        "description": scene_data.get("description", ""),
+        "npcs_present": scene_data.get("npcs_present", []),
+        "atmosphere": scene_data.get("atmosphere", ""),
+        "last_narrative": scene_data.get("summary", narrative_text[:300]),
+        "last_player_action": player_action[:200],
+    }
+
+    db = await get_database()
+    await db.campaigns.update_one(
+        {"_id": ObjectId(campaign_id)},
+        {"$set": {"scene": scene}},
+    )
+    logger.info(f"Scene state updated: location={scene['location']}, npcs={len(scene['npcs_present'])}")

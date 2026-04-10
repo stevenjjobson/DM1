@@ -287,13 +287,31 @@ async def create_character(
         character_attributes=character_attributes,
     )
 
-    # Update campaign — store character attrs as fallback for overlay display
+    # Initialize scene state from genesis world
+    starting_loc = next(
+        (loc for loc in world.locations if loc.name == world.starting_location),
+        world.locations[0] if world.locations else None,
+    )
+    scene = {
+        "location": world.starting_location,
+        "description": starting_loc.description if starting_loc else "",
+        "npcs_present": [
+            npc.name for npc in world.npcs
+            if npc.location == world.starting_location
+        ],
+        "atmosphere": "calm",
+        "last_narrative": world.opening_narration[:500],
+        "last_player_action": "",
+    }
+
+    # Update campaign — store character attrs + scene state
     await db.campaigns.update_one(
         {"_id": ObjectId(body.campaign_id)},
         {"$set": {
             "status": CampaignStatus.ACTIVE,
             "character_id": created["character_uuid"],
             "character_attrs": character_attributes,
+            "scene": scene,
             "current_turn": 0,
             "updated_at": datetime.now(timezone.utc),
         }},

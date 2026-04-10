@@ -84,6 +84,15 @@ async def context_node(state: GameState) -> dict:
             player_action=state["player_action"],
         )
 
+        # Load scene state from MongoDB for narrator continuity
+        try:
+            db = await get_database()
+            campaign = await db.campaigns.find_one({"_id": ObjectId(state["campaign_id"])})
+            if campaign and campaign.get("scene"):
+                context["scene"] = campaign["scene"]
+        except Exception as e:
+            logger.warning(f"Failed to load scene state: {e}")
+
         # Load real character attributes for rule enforcement
         from dm1.agents.rule_enforcer import build_mechanics_context
 

@@ -22,26 +22,31 @@ from dm1.providers.llm.router import get_llm_router
 
 logger = logging.getLogger(__name__)
 
-NARRATOR_SYSTEM_PROMPT = """You are the Dungeon Master for a D&D 5e adventure. You narrate the story in second person ("You enter the tavern..."). Your responsibilities:
+NARRATOR_SYSTEM_PROMPT = """You are the Dungeon Master for a D&D 5e adventure. You narrate the story in second person ("You enter the tavern...").
 
-1. **Narrate the scene** — Describe what the player experiences based on their action and the current game state. Write vivid, immersive prose in 2-4 paragraphs.
+## Core Rules
 
-2. **Enforce rules narratively** — If a player attempts something impossible (no spell slots, encumbered, etc.), narrate the failure naturally. Never show error messages.
+1. **Scene continuity is paramount.** You will receive CURRENT SCENE context showing where the player is, who is present, and what just happened. NEVER contradict this context. Build on it — don't restart the scene.
 
-3. **NPC dialogue** — Voice NPCs with distinct speech patterns. Use attribution tags ("growls", "whispers", "declares") rather than just "says".
+2. **Stay in the location** unless the player explicitly moves. If the player says "I look around," describe what they see HERE, not somewhere new.
 
-4. **Prose craft for voice** — Write for single-voice narration:
-   - Use em-dashes for dramatic pauses
-   - Short sentences for tension, flowing sentences for calm
-   - No stage directions like [angry] — convey mood through prose
-   - Attribution tags guide vocal delivery
+3. **Reference NPCs by name** when they're listed as present. Don't invent new NPCs when established ones are available for the scene.
 
-5. **Suggested actions** — After your narrative, provide exactly 3 contextually relevant action suggestions the player could take next. Format them as a JSON array on its own line, prefixed with "SUGGESTED_ACTIONS:".
+4. **Build on the previous turn.** If the last turn ended with tension, continue that tension. If the player just spoke to an NPC, that NPC is still there and remembers the conversation.
 
-IMPORTANT: End every response with a line containing:
+## Prose Craft
+
+- Write 2-4 paragraphs of vivid, immersive prose in second person
+- Voice NPCs with distinct speech patterns — use attribution tags ("growls", "whispers", "declares")
+- Use em-dashes for dramatic pauses, short sentences for tension, flowing sentences for calm
+- Enforce rules narratively — if an action is impossible, narrate the failure naturally
+
+## Suggested Actions
+
+End every response with exactly 3 contextually relevant action suggestions:
 SUGGESTED_ACTIONS: ["action 1", "action 2", "action 3"]
 
-These should be natural actions that follow from the narrative — exploring, talking to NPCs, investigating, fighting, etc. Make the first action the most plot-advancing option."""
+Actions should follow naturally from the current scene — talking to present NPCs, exploring the current location, advancing the active quest. Make the first option the most plot-advancing."""
 
 
 def build_narrator_prompt(
@@ -50,32 +55,43 @@ def build_narrator_prompt(
     turn_number: int,
 ) -> list[LLMMessage]:
     """Build the message list for the Narrator LLM call."""
-    # Assemble context into a concise summary for the narrator
     context_parts = []
 
+    # Scene state (highest priority — this is what grounds the narrative)
+    scene = context_package.get("scene", {})
+    if scene:
+        scene_lines = []
+        if scene.get("location"):
+            scene_lines.append(f"Location: {scene['location']}")
+        if scene.get("description"):
+            scene_lines.append(f"Description: {scene['description']}")
+        if scene.get("npcs_present"):
+            npcs = ", ".join(scene["npcs_present"]) if isinstance(scene["npcs_present"], list) else scene["npcs_present"]
+            scene_lines.append(f"NPCs present: {npcs}")
+        if scene.get("atmosphere"):
+            scene_lines.append(f"Atmosphere: {scene['atmosphere']}")
+        if scene_lines:
+            context_parts.append("CURRENT SCENE:\n" + "\n".join(scene_lines))
+
+    # Previous turn (continuity anchor)
+    if scene.get("last_narrative"):
+        prev = f"PREVIOUS TURN SUMMARY:\n{scene['last_narrative']}"
+        if scene.get("last_player_action"):
+            prev += f"\nThe player's last action was: {scene['last_player_action']}"
+        context_parts.append(prev)
+
+    # Graph-derived context (supplementary)
     if context_package.get("character_state"):
         char = context_package["character_state"]
-        facts = [e["fact"] for e in char.get("primary_edges", [])[:5]]
+        facts = [e["fact"] for e in char.get("primary_edges", [])[:3]]
         if facts:
-            context_parts.append("CHARACTER STATE:\n" + "\n".join(f"- {f}" for f in facts))
-
-    if context_package.get("location"):
-        loc = context_package["location"]
-        entities = [e["fact"] for e in loc.get("entities_present", [])[:5]]
-        connections = [e["fact"] for e in loc.get("connections", [])[:3]]
-        if entities:
-            context_parts.append("PRESENT HERE:\n" + "\n".join(f"- {f}" for f in entities))
-        if connections:
-            context_parts.append("NEARBY:\n" + "\n".join(f"- {f}" for f in connections))
+            context_parts.append("CHARACTER FACTS:\n" + "\n".join(f"- {f}" for f in facts))
 
     if context_package.get("plot_state"):
         plot = context_package["plot_state"]
         quests = [e["fact"] for e in plot.get("active_quests", [])[:3]]
-        events = [e["fact"] for e in plot.get("recent_events", [])[:3]]
         if quests:
             context_parts.append("ACTIVE QUESTS:\n" + "\n".join(f"- {f}" for f in quests))
-        if events:
-            context_parts.append("RECENT EVENTS:\n" + "\n".join(f"- {f}" for f in events))
 
     if context_package.get("action_context"):
         action_ctx = [e["fact"] for e in context_package["action_context"][:3]]
