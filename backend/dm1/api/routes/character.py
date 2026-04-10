@@ -223,6 +223,7 @@ async def create_character(
     hp = max(1, char_class["hit_die"] + modifiers["constitution"])
 
     character_attributes = {
+        "name": body.name,
         "race": race["name"],
         "char_class": char_class["name"],
         "level": 1,
