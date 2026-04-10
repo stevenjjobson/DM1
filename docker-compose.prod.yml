@@ -47,9 +47,9 @@ services:
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
       - "traefik.http.routers.backend.priority=100"
-      - "traefik.http.routers.backend.middlewares=site-auth@docker"
-      # Basic auth middleware definition (shared across routers)
+      # Basic auth middleware definition (applied to frontend only — backend uses JWT)
       - "traefik.http.middlewares.site-auth.basicauth.users=${TRAEFIK_BASIC_AUTH}"
+      - "traefik.http.middlewares.site-auth.basicauth.realm=DungeonMasterONE"
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
       - "traefik.http.services.backend.loadbalancer.server.scheme=http"
       - "traefik.docker.network=dm1-web"
