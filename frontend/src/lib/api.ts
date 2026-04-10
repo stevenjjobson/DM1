@@ -33,7 +33,12 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new ApiError(res.status, error.detail || res.statusText);
+    let detail = error.detail || res.statusText;
+    // FastAPI 422 returns detail as an array of validation errors
+    if (Array.isArray(detail)) {
+      detail = detail.map((e: { msg?: string }) => e.msg || "Validation error").join(". ");
+    }
+    throw new ApiError(res.status, String(detail));
   }
 
   if (res.status === 204) return undefined as T;
