@@ -60,6 +60,11 @@ async def get_character_sheet(
 
     modifiers = {k: ability_modifier(v) for k, v in abilities.items()} if abilities else {}
 
+    # Hit dice info
+    hit_die_type = character_data.get("hit_die_type", "d8")
+    hit_dice_current = character_data.get("hit_dice_current", level)
+    hit_dice_total = character_data.get("hit_dice_total", level)
+
     return {
         "name": character_data.get("name", campaign.get("name", "Adventurer")),
         "race": character_data.get("race", "Unknown"),
@@ -73,6 +78,8 @@ async def get_character_sheet(
         "proficiency_bonus": prof,
         "abilities": abilities,
         "modifiers": modifiers,
+        "hit_die": hit_die_type,
+        "hit_dice": f"{hit_dice_current}/{hit_dice_total} {hit_die_type}",
         "conditions": character_data.get("conditions", []),
         "proficiencies": character_data.get("proficiencies", []),
         "background": character_data.get("background", ""),

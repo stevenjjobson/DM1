@@ -15,6 +15,7 @@ type CharacterData = {
   proficiency_bonus: number; xp: number;
   abilities: Record<string, number>;
   modifiers: Record<string, number>;
+  hit_dice: string;
   conditions: string[];
   proficiencies: string[];
   background: string;
@@ -50,8 +51,8 @@ function CharacterPanel({ campaignId }: { campaignId: string }) {
         </div>
       </div>
 
-      {/* HP / AC / Speed */}
-      <div className="grid grid-cols-3 gap-2">
+      {/* HP / AC / Speed / Hit Dice */}
+      <div className="grid grid-cols-4 gap-2">
         <div className="bg-neutral-800 rounded-lg p-2 text-center">
           <div className="text-xs text-neutral-500">HP</div>
           <div className="text-lg font-bold text-red-400">{data.hp}/{data.max_hp}</div>
@@ -63,6 +64,10 @@ function CharacterPanel({ campaignId }: { campaignId: string }) {
         <div className="bg-neutral-800 rounded-lg p-2 text-center">
           <div className="text-xs text-neutral-500">Speed</div>
           <div className="text-lg font-bold text-green-400">{data.speed}ft</div>
+        </div>
+        <div className="bg-neutral-800 rounded-lg p-2 text-center">
+          <div className="text-xs text-neutral-500">Hit Dice</div>
+          <div className="text-sm font-bold text-purple-400">{data.hit_dice}</div>
         </div>
       </div>
 
