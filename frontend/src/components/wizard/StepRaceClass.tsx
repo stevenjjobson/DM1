@@ -63,7 +63,7 @@ export function StepRaceClass() {
     <div className="space-y-6">
       <div>
         <label className="block text-sm font-medium text-neutral-300 mb-3">Choose Your Race</label>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {races.map((race) => (
             <button
               key={race.index}
@@ -86,7 +86,7 @@ export function StepRaceClass() {
 
       <div>
         <label className="block text-sm font-medium text-neutral-300 mb-3">Choose Your Class</label>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {classes.map((cls) => (
             <button
               key={cls.index}

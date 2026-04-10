@@ -70,7 +70,7 @@ function CharacterPanel({ campaignId }: { campaignId: string }) {
       {Object.keys(data.abilities).length > 0 && (
         <div>
           <div className="text-xs text-neutral-500 font-semibold mb-2">Abilities</div>
-          <div className="grid grid-cols-6 gap-1">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1">
             {Object.entries(data.abilities).map(([key, score]) => (
               <div key={key} className="bg-neutral-800 rounded p-1.5 text-center">
                 <div className="text-[10px] text-neutral-500">{ABILITY_LABELS[key] || key}</div>
