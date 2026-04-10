@@ -46,22 +46,25 @@ async def get_character_sheet(
     if not character_data and campaign.get("character_attrs"):
         character_data = campaign["character_attrs"]
 
-    # Get character-specific facts from graph search
-    char_name = character_data.get("name", "player")
+    # World Knowledge: key people, places, and things the character has learned
+    # that are relevant to active quests and the world around them
     graph_facts = []
     try:
+        # Search for discovered NPCs, locations, quest-related facts
         results = await search(
-            f"{char_name} character owns carries located at visited discovered",
-            campaign_id, limit=15
+            "important NPC location quest discovered learned knows about tavern village dungeon threat",
+            campaign_id, limit=20
         )
-        # Filter to facts that mention the character or player directly
-        char_keywords = [char_name.lower(), "player", "adventurer", "you"]
+        seen = set()
         for edge in results:
-            fact_lower = edge.fact.lower()
-            if any(kw in fact_lower for kw in char_keywords):
-                graph_facts.append(edge)
-                if len(graph_facts) >= 6:
-                    break
+            # Deduplicate by first 50 chars
+            key = edge.fact[:50].lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            graph_facts.append(edge)
+            if len(graph_facts) >= 8:
+                break
     except Exception:
         pass
 

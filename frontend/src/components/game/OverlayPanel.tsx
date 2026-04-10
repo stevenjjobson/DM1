@@ -166,7 +166,7 @@ function CharacterPanel({ campaignId }: { campaignId: string }) {
       {/* Context from Graph */}
       {data.graph_context.length > 0 && (
         <div>
-          <div className="text-xs text-neutral-500 font-semibold mb-1">World Knowledge</div>
+          <div className="text-xs text-neutral-500 font-semibold mb-1">Known People, Places &amp; Things</div>
           <div className="space-y-1">
             {data.graph_context.map((f, i) => (
               <div key={i} className="text-xs text-neutral-400 bg-neutral-800 rounded px-2 py-1">{f.fact}</div>
