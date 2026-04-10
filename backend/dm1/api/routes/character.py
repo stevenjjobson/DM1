@@ -240,12 +240,13 @@ async def create_character(
         character_attributes=character_attributes,
     )
 
-    # Update campaign
+    # Update campaign — store character attrs as fallback for overlay display
     await db.campaigns.update_one(
         {"_id": ObjectId(body.campaign_id)},
         {"$set": {
             "status": CampaignStatus.ACTIVE,
             "character_id": created["character_uuid"],
+            "character_attrs": character_attributes,
             "current_turn": 0,
             "updated_at": datetime.now(timezone.utc),
         }},

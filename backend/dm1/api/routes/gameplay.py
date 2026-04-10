@@ -48,6 +48,19 @@ async def start_campaign(
 
     settings = campaign["settings"]
 
+    default_attrs = {
+        "race": "Human",
+        "char_class": "Fighter",
+        "level": 1,
+        "hp": 12,
+        "max_hp": 12,
+        "ac": 16,
+        "speed": 30,
+        "proficiency_bonus": 2,
+        "abilities": {"strength": 15, "dexterity": 13, "constitution": 14,
+                      "intelligence": 10, "wisdom": 12, "charisma": 8},
+    }
+
     # Generate world
     world = await generate_world(
         campaign_name=campaign["name"],
@@ -63,23 +76,17 @@ async def start_campaign(
         world=world,
         campaign_id=campaign_id,
         character_name="The Adventurer",
-        character_attributes={
-            "race": "Human",
-            "char_class": "Fighter",
-            "level": 1,
-            "hp": 12,
-            "max_hp": 12,
-            "ac": 16,
-        },
+        character_attributes=default_attrs,
     )
 
-    # Update campaign status
+    # Update campaign status — store attrs as fallback for overlay display
     from datetime import datetime, timezone
     await db.campaigns.update_one(
         {"_id": ObjectId(campaign_id)},
         {"$set": {
             "status": CampaignStatus.ACTIVE,
             "character_id": created["character_uuid"],
+            "character_attrs": default_attrs,
             "current_turn": 0,
             "updated_at": datetime.now(timezone.utc),
         }},

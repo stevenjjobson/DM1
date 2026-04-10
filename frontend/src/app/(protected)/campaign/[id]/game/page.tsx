@@ -58,8 +58,10 @@ export default function GamePage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Initialize campaign on mount
+  // Clear stale state and initialize campaign on mount
   useEffect(() => {
+    clearMessages();
+
     if (!user || !accessToken) {
       router.push("/login");
       return;

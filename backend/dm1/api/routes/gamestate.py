@@ -35,12 +35,23 @@ async def get_character_sheet(
     # Try to load character node from graph
     character_data = {}
     if character_id:
-        node = await get_node_by_uuid(character_id)
-        if node:
-            character_data = node.attributes or {}
+        try:
+            node = await get_node_by_uuid(character_id)
+            if node and node.attributes:
+                character_data = node.attributes
+        except Exception:
+            pass
+
+    # Fallback: check if character data was stored in the campaign doc
+    if not character_data and campaign.get("character_attrs"):
+        character_data = campaign["character_attrs"]
 
     # Get related facts from graph search
-    graph_facts = await search("player character stats equipment location", campaign_id, limit=10)
+    graph_facts = []
+    try:
+        graph_facts = await search("player character stats equipment location", campaign_id, limit=8)
+    except Exception:
+        pass
 
     # Build structured character sheet
     abilities = character_data.get("abilities", {})
