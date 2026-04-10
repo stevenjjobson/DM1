@@ -169,16 +169,48 @@ Return ONLY the JSON array, no other text.""",
 
 
 async def _apply_state_change(change: dict, campaign_id: str, turn_number: int):
-    """Apply a single state change to the knowledge graph."""
+    """Apply a single state change to the knowledge graph and MongoDB."""
+    from bson import ObjectId
+    from dm1.api.database import get_database
+
     change_type = change.get("type", "")
+    db = await get_database()
+
+    # Load character_id for mutations that need it
+    campaign = await db.campaigns.find_one({"_id": ObjectId(campaign_id)})
+    character_id = campaign.get("character_id") if campaign else None
 
     match change_type:
         case "hp_change":
-            # Would need character UUID — for now, log it
-            logger.info(f"HP change: {change.get('amount', 0)}")
+            amount = change.get("amount", 0)
+            if character_id and amount != 0:
+                try:
+                    await update_character_hp(character_id, amount, campaign_id)
+                except Exception:
+                    pass
+                # Also update MongoDB fallback
+                if campaign and campaign.get("character_attrs"):
+                    attrs = campaign["character_attrs"]
+                    new_hp = max(0, min(attrs.get("max_hp", 0), attrs.get("hp", 0) + amount))
+                    await db.campaigns.update_one(
+                        {"_id": ObjectId(campaign_id)},
+                        {"$set": {"character_attrs.hp": new_hp}},
+                    )
+            logger.info(f"HP change: {amount}")
 
         case "item_acquired":
-            logger.info(f"Item acquired: {change.get('item', 'unknown')}")
+            item_name = change.get("item", "unknown")
+            if character_id:
+                try:
+                    await give_item_to_character(
+                        item_name=item_name,
+                        item_attributes={"item_type": "found", "description": item_name},
+                        character_uuid=character_id,
+                        group_id=campaign_id,
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to add item to graph: {e}")
+            logger.info(f"Item acquired: {item_name}")
 
         case "quest_started":
             try:
@@ -194,16 +226,46 @@ async def _apply_state_change(change: dict, campaign_id: str, turn_number: int):
                 logger.error(f"Failed to create quest: {e}")
 
         case "location_changed":
-            logger.info(f"Location changed to: {change.get('location', 'unknown')}")
+            new_location = change.get("location", "unknown")
+            if character_id:
+                try:
+                    await move_entity(character_id, new_location, campaign_id)
+                except Exception as e:
+                    logger.warning(f"Failed to update location in graph: {e}")
+            logger.info(f"Location changed to: {new_location}")
 
         case "npc_opinion_changed":
-            logger.info(f"NPC opinion change: {change.get('npc')} by {change.get('change', 0)}")
+            npc_name = change.get("npc", "")
+            opinion_change = change.get("change", 0)
+            if npc_name and opinion_change != 0:
+                try:
+                    await update_npc_opinion(npc_name, opinion_change, campaign_id)
+                except Exception as e:
+                    logger.warning(f"Failed to update NPC opinion: {e}")
+            logger.info(f"NPC opinion change: {npc_name} by {opinion_change}")
 
         case "xp_gained":
-            logger.info(f"XP gained: {change.get('amount', 0)}")
+            amount = change.get("amount", 0)
+            if campaign and campaign.get("character_attrs") and amount > 0:
+                new_xp = campaign["character_attrs"].get("xp", 0) + amount
+                await db.campaigns.update_one(
+                    {"_id": ObjectId(campaign_id)},
+                    {"$set": {"character_attrs.xp": new_xp}},
+                )
+            logger.info(f"XP gained: {amount}")
 
         case "rest":
-            logger.info(f"Rest: {change.get('rest_type', 'short')}")
+            rest_type = change.get("rest_type", "short")
+            # Restore spell slots on rest
+            if campaign and campaign.get("character_attrs", {}).get("spell_slots"):
+                if rest_type == "long":
+                    slots = campaign["character_attrs"]["spell_slots"]
+                    restored = {k: {"max": v["max"], "current": v["max"]} for k, v in slots.items()}
+                    await db.campaigns.update_one(
+                        {"_id": ObjectId(campaign_id)},
+                        {"$set": {"character_attrs.spell_slots": restored}},
+                    )
+            logger.info(f"Rest: {rest_type}")
 
         case _:
             logger.info(f"Unhandled state change type: {change_type}")

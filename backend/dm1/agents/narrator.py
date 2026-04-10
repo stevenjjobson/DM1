@@ -222,21 +222,33 @@ async def generate_session_recap(
     turn_number: int,
 ) -> str:
     """Generate a recap for session resume ('When we last left off...')."""
+    # Build recap context from scene state (preferred) or graph events (fallback)
+    scene = context_package.get("scene", {})
+    if scene:
+        recap_context = f"Turn {turn_number}."
+        if scene.get("location"):
+            recap_context += f"\nLocation: {scene['location']}"
+        if scene.get("npcs_present"):
+            npcs = ", ".join(scene["npcs_present"]) if isinstance(scene["npcs_present"], list) else scene["npcs_present"]
+            recap_context += f"\nNPCs present: {npcs}"
+        if scene.get("last_narrative"):
+            recap_context += f"\nLast events: {scene['last_narrative']}"
+        if scene.get("last_player_action"):
+            recap_context += f"\nPlayer's last action: {scene['last_player_action']}"
+    else:
+        recap_context = f"Turn {turn_number}. Recent context:\n" + "\n".join(
+            e["fact"]
+            for e in context_package.get("plot_state", {}).get("recent_events", [])[:5]
+        )
+
     messages = [
         LLMMessage(
             role="system",
             content="You are a D&D Dungeon Master. The player is resuming their adventure. "
             "Provide a brief recap (2-3 sentences) of where they left off, written in second person. "
-            "Be concise and atmospheric.",
+            "Reference the location and any NPCs present. Be concise and atmospheric.",
         ),
-        LLMMessage(
-            role="user",
-            content=f"Turn {turn_number}. Recent context:\n"
-            + "\n".join(
-                e["fact"]
-                for e in context_package.get("plot_state", {}).get("recent_events", [])[:5]
-            ),
-        ),
+        LLMMessage(role="user", content=recap_context),
     ]
 
     router = get_llm_router()
