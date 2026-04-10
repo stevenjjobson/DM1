@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 import { useGameStore } from "@/stores/game-store";
 import { api, ApiError } from "@/lib/api";
+import { GameWebSocket } from "@/lib/ws";
 import { ChatMessage } from "@/components/game/ChatMessage";
 import { SuggestedActions } from "@/components/game/SuggestedActions";
 import { ActionInput } from "@/components/game/ActionInput";
@@ -36,15 +37,21 @@ export default function GamePage() {
     messages,
     suggestions,
     isLoading,
+    wsConnected,
     addDMMessage,
     addPlayerMessage,
+    addImage,
+    startDMStream,
+    appendToLastDM,
     setSuggestions,
     setLoading,
     setTurnNumber,
+    setWsConnected,
     clearMessages,
   } = useGameStore();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const wsRef = useRef<GameWebSocket | null>(null);
   const [campaignName, setCampaignName] = useState("Adventure");
   const [initialized, setInitialized] = useState(false);
   const [activePanel, setActivePanel] = useState<string | null>(null);
@@ -138,11 +145,48 @@ export default function GamePage() {
     };
 
     init();
+
+    return () => {
+      wsRef.current?.disconnect();
+      wsRef.current = null;
+    };
   }, [campaignId, user, accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleAction = async (action: string) => {
-    if (!accessToken || isLoading) return;
+  // Connect WebSocket after initialization
+  useEffect(() => {
+    if (!initialized || !accessToken) return;
 
+    const ws = new GameWebSocket(campaignId, accessToken, {
+      onNarrativeChunk: (text) => appendToLastDM(text),
+      onNarrativeEnd: () => setLoading(false),
+      onSuggestions: (actions) => setSuggestions(actions),
+      onTurnComplete: (turn) => setTurnNumber(turn),
+      onImage: (url, caption) => addImage(url, caption),
+      onError: (msg) => {
+        addDMMessage(`*Something went wrong: ${msg}*`);
+        setLoading(false);
+      },
+      onConnectionChange: (connected) => setWsConnected(connected),
+    });
+
+    wsRef.current = ws;
+    ws.connect();
+
+    return () => {
+      ws.disconnect();
+      wsRef.current = null;
+    };
+  }, [initialized, campaignId, accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleActionWs = (action: string) => {
+    addPlayerMessage(action);
+    setSuggestions([]);
+    setLoading(true);
+    startDMStream();
+    wsRef.current!.sendAction(action);
+  };
+
+  const handleActionRest = async (action: string) => {
     addPlayerMessage(action);
     setSuggestions([]);
     setLoading(true);
@@ -156,13 +200,22 @@ export default function GamePage() {
       addDMMessage(result.narrative);
       setSuggestions(result.suggested_actions);
       setTurnNumber(result.turn);
-    } catch (e) {
+    } catch {
       addDMMessage(
         "*The threads of fate twist unexpectedly...*\n\nSomething went wrong. Please try your action again."
       );
       setSuggestions(["Try again", "Look around", "Do something else"]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAction = (action: string) => {
+    if (!accessToken || isLoading) return;
+    if (wsConnected && wsRef.current) {
+      handleActionWs(action);
+    } else {
+      handleActionRest(action);
     }
   };
 
@@ -179,7 +232,8 @@ export default function GamePage() {
           &larr; Back
         </button>
         <h1 className="text-amber-500 font-semibold">{campaignName}</h1>
-        <div className="text-xs text-neutral-500">
+        <div className="flex items-center gap-2 text-xs text-neutral-500">
+          <span className={`w-2 h-2 rounded-full ${wsConnected ? "bg-green-500" : "bg-neutral-600"}`} />
           {useGameStore.getState().turnNumber > 0 &&
             `Turn ${useGameStore.getState().turnNumber}`}
         </div>

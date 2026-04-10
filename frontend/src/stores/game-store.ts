@@ -18,6 +18,8 @@ type GameState = {
   addDMMessage: (text: string) => void;
   addPlayerMessage: (text: string) => void;
   addImage: (url: string, caption: string) => void;
+  startDMStream: () => void;
+  appendToLastDM: (text: string) => void;
   setSuggestions: (actions: string[]) => void;
   setLoading: (loading: boolean) => void;
   setTurnNumber: (turn: number) => void;
@@ -55,6 +57,31 @@ export const useGameStore = create<GameState>((set) => ({
         { id: crypto.randomUUID(), role: "image", text: caption, imageUrl: url, timestamp: Date.now() },
       ],
     })),
+
+  startDMStream: () =>
+    set((s) => ({
+      messages: [
+        ...s.messages,
+        { id: crypto.randomUUID(), role: "dm", text: "", timestamp: Date.now() },
+      ],
+    })),
+
+  appendToLastDM: (text) =>
+    set((s) => {
+      const msgs = [...s.messages];
+      for (let i = msgs.length - 1; i >= 0; i--) {
+        if (msgs[i].role === "dm") {
+          msgs[i] = { ...msgs[i], text: msgs[i].text + text };
+          return { messages: msgs };
+        }
+      }
+      return {
+        messages: [
+          ...msgs,
+          { id: crypto.randomUUID(), role: "dm", text, timestamp: Date.now() },
+        ],
+      };
+    }),
 
   setSuggestions: (actions) => set({ suggestions: actions }),
   setLoading: (loading) => set({ isLoading: loading }),

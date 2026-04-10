@@ -16,7 +16,7 @@ import asyncio
 
 from dm1.agents.genesis import generate_world, populate_knowledge_graph
 from dm1.agents.narrator import generate_narrative_stream, parse_suggestions
-from dm1.agents.orchestrator import run_turn
+from dm1.agents.orchestrator import run_turn, run_turn_streaming
 from dm1.agents.visual_director import generate_scene_async
 from dm1.api.auth import decode_token
 from dm1.api.database import get_database
@@ -208,22 +208,24 @@ async def gameplay_websocket(
             # Increment turn
             turn_number = campaign.get("current_turn", 0) + 1
 
-            # Run the full pipeline (non-streaming for Phase 1C — streaming added later)
+            # Run the pipeline with streaming narrator output
             try:
-                result = await run_turn(campaign_id, player_action, turn_number)
-
-                # Send narrative as a single chunk (streaming upgrade in future)
-                await websocket.send_json({
-                    "type": "narrative_chunk",
-                    "text": result["narrative"],
-                })
-                await websocket.send_json({"type": "narrative_end"})
-
-                # Send suggestions
-                await websocket.send_json({
-                    "type": "suggestions",
-                    "actions": result["suggested_actions"],
-                })
+                accumulated_narrative = ""
+                async for event_type, data in run_turn_streaming(campaign_id, player_action, turn_number):
+                    if event_type == "narrative_chunk":
+                        accumulated_narrative += data
+                        await websocket.send_json({
+                            "type": "narrative_chunk",
+                            "text": data,
+                        })
+                    elif event_type == "narrative_end":
+                        accumulated_narrative = data
+                        await websocket.send_json({"type": "narrative_end"})
+                    elif event_type == "suggestions":
+                        await websocket.send_json({
+                            "type": "suggestions",
+                            "actions": data,
+                        })
 
                 # Update turn counter
                 from datetime import datetime, timezone
@@ -253,7 +255,7 @@ async def gameplay_websocket(
                 campaign_tone = campaign.get("settings", {}).get("tone", "epic_fantasy")
                 asyncio.create_task(
                     generate_scene_async(
-                        narrative_text=result["narrative"],
+                        narrative_text=accumulated_narrative,
                         campaign_id=campaign_id,
                         campaign_tone=campaign_tone,
                         on_image_ready=on_image_ready,
