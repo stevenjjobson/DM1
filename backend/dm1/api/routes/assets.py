@@ -12,7 +12,9 @@ from fastapi.responses import FileResponse
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
-ASSETS_DIR = Path(__file__).parent.parent.parent.parent / "assets" / "campaigns"
+_docker_path = Path("/app/assets/campaigns")
+_local_path = Path(__file__).parent.parent.parent.parent / "assets" / "campaigns"
+ASSETS_DIR = _docker_path if _docker_path.parent.exists() else _local_path
 
 
 @router.get("/campaigns/{campaign_id}/{filename}")

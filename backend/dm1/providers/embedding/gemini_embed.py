@@ -24,7 +24,7 @@ def _get_client() -> genai.Client:
     return _client
 
 
-async def embed_text(text: str, dimensions: int = 768) -> list[float]:
+async def embed_text(text: str, dimensions: int = 1024) -> list[float]:
     """Embed text using Gemini Embedding 2.
 
     Args:
@@ -40,7 +40,7 @@ async def embed_text(text: str, dimensions: int = 768) -> list[float]:
     return response.embeddings[0].values
 
 
-async def embed_texts(texts: list[str], dimensions: int = 768) -> list[list[float]]:
+async def embed_texts(texts: list[str], dimensions: int = 1024) -> list[list[float]]:
     """Batch embed multiple texts."""
     client = _get_client()
     response = client.models.embed_content(

@@ -8,6 +8,7 @@ Supports two generation paths:
 Images are stored locally in Phase 1 (cloud storage in production).
 """
 
+import asyncio
 import logging
 import uuid as uuid_mod
 from pathlib import Path
@@ -19,8 +20,10 @@ from dm1.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-# Local asset storage for Phase 1
-ASSETS_DIR = Path(__file__).parent.parent.parent.parent.parent / "assets" / "campaigns"
+# Local asset storage — /app/assets in Docker, ./assets locally
+_docker_path = Path("/app/assets/campaigns")
+_local_path = Path(__file__).parent.parent.parent.parent.parent / "assets" / "campaigns"
+ASSETS_DIR = _docker_path if _docker_path.parent.exists() else _local_path
 
 _client: genai.Client | None = None
 
@@ -45,8 +48,8 @@ async def generate_scene_image(
     client = _get_client()
     model = "imagen-4-ultra" if tier == "ultra" else "imagen-4"
 
-    try:
-        response = client.models.generate_images(
+    def _sync_generate():
+        resp = client.models.generate_images(
             model=model,
             prompt=prompt,
             config=types.GenerateImagesConfig(
@@ -54,21 +57,23 @@ async def generate_scene_image(
                 output_mime_type="image/jpeg",
             ),
         )
-
-        if not response.generated_images:
-            logger.warning("Imagen returned no images")
+        if not resp.generated_images:
             return None
 
-        # Save to local filesystem
         campaign_dir = ASSETS_DIR / campaign_id
         campaign_dir.mkdir(parents=True, exist_ok=True)
         filename = f"scene_{uuid_mod.uuid4().hex[:8]}.jpg"
         filepath = campaign_dir / filename
-
-        response.generated_images[0].image.save(str(filepath))
-        logger.info(f"Scene image saved: {filepath}")
-
+        resp.generated_images[0].image.save(str(filepath))
         return {"path": str(filepath), "filename": filename}
+
+    try:
+        result = await asyncio.to_thread(_sync_generate)
+        if result:
+            logger.info(f"Scene image saved: {result['path']}")
+        else:
+            logger.warning("Imagen returned no images")
+        return result
 
     except Exception as e:
         logger.error(f"Image generation failed: {e}")
@@ -87,42 +92,39 @@ async def generate_character_portrait(
     """
     client = _get_client()
 
-    try:
+    def _sync_generate():
         contents = [prompt]
-
-        # Add reference image for consistency if available
         if reference_image_path:
             from PIL import Image
             ref_image = Image.open(reference_image_path)
             contents = [prompt, ref_image]
 
-        response = client.models.generate_content(
-            model="gemini-2.0-flash-exp",  # Nano Banana model
+        resp = client.models.generate_content(
+            model="gemini-2.0-flash-exp",
             contents=contents,
             config=types.GenerateContentConfig(
                 response_modalities=["IMAGE"],
-                image_config=types.ImageConfig(
-                    aspect_ratio="3:4",
-                ),
+                image_config=types.ImageConfig(aspect_ratio="3:4"),
             ),
         )
-
-        # Extract image from response parts
-        for part in response.parts:
+        for part in resp.parts:
             if part.inline_data is not None:
                 campaign_dir = ASSETS_DIR / campaign_id
                 campaign_dir.mkdir(parents=True, exist_ok=True)
                 filename = f"portrait_{uuid_mod.uuid4().hex[:8]}.png"
                 filepath = campaign_dir / filename
-
                 image = part.as_image()
                 image.save(str(filepath))
-                logger.info(f"Portrait saved: {filepath}")
-
                 return {"path": str(filepath), "filename": filename}
-
-        logger.warning("Nano Banana returned no image parts")
         return None
+
+    try:
+        result = await asyncio.to_thread(_sync_generate)
+        if result:
+            logger.info(f"Portrait saved: {result['path']}")
+        else:
+            logger.warning("Nano Banana returned no image parts")
+        return result
 
     except Exception as e:
         logger.error(f"Portrait generation failed: {e}")
