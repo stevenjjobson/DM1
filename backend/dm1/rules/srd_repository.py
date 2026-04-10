@@ -180,9 +180,14 @@ class SRDRepository:
         ]
 
     def get_level_data(self, class_index: str, level: int) -> dict[str, Any] | None:
-        """Get the level progression data for a class at a specific level."""
+        """Get the level progression data for a class at a specific level.
+
+        Filters out subclass-specific entries to return the base class data.
+        """
         for entry in self._data.get("levels", []):
-            if entry.get("class", {}).get("index") == class_index and entry.get("level") == level:
+            if (entry.get("class", {}).get("index") == class_index
+                    and entry.get("level") == level
+                    and entry.get("subclass") is None):
                 return entry
         return None
 

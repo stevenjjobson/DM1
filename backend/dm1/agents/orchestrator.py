@@ -11,10 +11,13 @@ NPC Agent, Storyteller, and Visual Director are added in later sub-phases.
 import logging
 from typing import Annotated, TypedDict
 
+from bson import ObjectId
 from langgraph.graph import END, START, StateGraph
 
 from dm1.agents.archivist import build_context_package, process_narrative
-from dm1.agents.narrator import generate_narrative, parse_suggestions
+from dm1.agents.narrator import generate_narrative, generate_narrative_stream, parse_suggestions
+from dm1.api.database import get_database
+from dm1.graph.client import get_node_by_uuid
 
 logger = logging.getLogger(__name__)
 
@@ -81,15 +84,10 @@ async def context_node(state: GameState) -> dict:
             player_action=state["player_action"],
         )
 
-        # Run rule enforcer for mechanical outcomes (dice rolls, skill checks)
+        # Load real character attributes for rule enforcement
         from dm1.agents.rule_enforcer import build_mechanics_context
-        from dm1.graph.client import get_node_by_uuid
 
-        # Try to get character attributes for rule enforcement
-        # In a full implementation, this would come from the graph node
-        character_attrs = {"abilities": {"strength": 14, "dexterity": 12, "constitution": 13,
-                                          "intelligence": 10, "wisdom": 15, "charisma": 8},
-                           "level": 1, "proficiencies": []}
+        character_attrs = await _load_character_attrs(state["campaign_id"])
 
         mechanics = build_mechanics_context(state["player_action"], character_attrs)
         if mechanics:
@@ -225,6 +223,99 @@ async def run_turn(campaign_id: str, player_action: str, turn_number: int) -> di
         "usage": result.get("narrator_usage", {}),
         "error": result.get("error", ""),
     }
+
+
+async def _load_character_attrs(campaign_id: str) -> dict:
+    """Load real character attributes from MongoDB (graph fallback).
+
+    Tries the knowledge graph node first, falls back to the campaign document's
+    character_attrs dict, and uses a hardcoded default as a last resort.
+    """
+    default_attrs = {
+        "abilities": {"strength": 10, "dexterity": 10, "constitution": 10,
+                      "intelligence": 10, "wisdom": 10, "charisma": 10},
+        "level": 1, "proficiencies": [],
+    }
+    try:
+        db = await get_database()
+        campaign = await db.campaigns.find_one({"_id": ObjectId(campaign_id)})
+        if not campaign:
+            return default_attrs
+
+        # Try graph node first (most up-to-date)
+        character_id = campaign.get("character_id")
+        if character_id:
+            try:
+                node = await get_node_by_uuid(character_id)
+                if node and node.attributes and node.attributes.get("abilities"):
+                    return node.attributes
+            except Exception:
+                pass
+
+        # Fall back to MongoDB campaign document
+        attrs = campaign.get("character_attrs", {})
+        if attrs and attrs.get("abilities"):
+            return attrs
+
+        return default_attrs
+    except Exception as e:
+        logger.error(f"Failed to load character attrs for campaign {campaign_id}: {e}")
+        return default_attrs
+
+
+async def run_turn_streaming(campaign_id: str, player_action: str, turn_number: int):
+    """Execute a turn with streaming narrator output.
+
+    Yields (event_type, data) tuples:
+      ("narrative_chunk", text)
+      ("narrative_end", accumulated_text)
+      ("suggestions", list[str])
+    """
+    import asyncio
+
+    # Run orchestrator + context nodes synchronously (fast, no streaming needed)
+    state: GameState = {
+        "campaign_id": campaign_id,
+        "player_action": player_action,
+        "turn_number": turn_number,
+        "action_type": "",
+        "context_package": {},
+        "narrative": "",
+        "suggested_actions": [],
+        "narrator_usage": {},
+        "graph_changes": {},
+        "error": "",
+    }
+
+    orch_result = await orchestrator_node(state)
+    state.update(orch_result)
+
+    ctx_result = await context_node(state)
+    state.update(ctx_result)
+
+    # Stream narrator output
+    accumulated = ""
+    async for chunk in generate_narrative_stream(
+        player_action=player_action,
+        context_package=state.get("context_package", {}),
+        turn_number=turn_number,
+    ):
+        accumulated += chunk.content
+        yield ("narrative_chunk", chunk.content)
+
+    yield ("narrative_end", accumulated)
+
+    # Parse suggestions from accumulated text
+    suggestions = parse_suggestions(accumulated)
+    yield ("suggestions", suggestions)
+
+    # Fire Archivist as background task
+    asyncio.create_task(_run_archivist_background(
+        campaign_id=campaign_id,
+        narrative_text=accumulated,
+        player_action=player_action,
+        turn_number=turn_number,
+    ))
 
 
 async def _run_archivist_background(
