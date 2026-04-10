@@ -232,7 +232,7 @@ export default function GamePage() {
     }
   };
 
-  if (!user) return null;
+  if (!_hasHydrated || !user) return null;
 
   return (
     <div className="flex flex-col h-screen bg-neutral-950">

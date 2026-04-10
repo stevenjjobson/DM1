@@ -100,7 +100,7 @@ async def generate_character_portrait(
             contents = [prompt, ref_image]
 
         resp = client.models.generate_content(
-            model="gemini-2.0-flash-exp",
+            model="gemini-2.0-flash-preview-image-generation",
             contents=contents,
             config=types.GenerateContentConfig(
                 response_modalities=["IMAGE"],

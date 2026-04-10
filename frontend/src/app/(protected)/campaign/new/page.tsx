@@ -117,7 +117,7 @@ export default function NewCampaignPage() {
     }
   };
 
-  if (!user) return null;
+  if (!_hasHydrated || !user) return null;
 
   return (
     <div className="min-h-screen bg-neutral-950">

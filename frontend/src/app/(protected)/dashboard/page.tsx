@@ -95,7 +95,7 @@ export default function DashboardPage() {
     router.push("/campaign/new");
   };
 
-  if (!user) return null;
+  if (!_hasHydrated || !user) return null;
 
   return (
     <div className="min-h-screen bg-neutral-950">
