@@ -110,6 +110,20 @@ async def context_node(state: GameState) -> dict:
             except Exception as e:
                 logger.warning(f"NPC Agent failed, narrator will improvise: {e}")
 
+        # Storyteller pacing check every 5 turns
+        turn = state.get("turn_number", 0)
+        if turn > 0 and turn % 5 == 0:
+            try:
+                from dm1.agents.storyteller import evaluate_pacing
+                pacing = await evaluate_pacing(state["campaign_id"])
+                if pacing["pacing_status"] == "slow" and pacing.get("suggested_event"):
+                    context["pacing_event"] = pacing["suggested_event"]
+                    logger.info(f"Storyteller injecting pacing event at turn {turn}")
+                if pacing.get("quest_update"):
+                    context["quest_update"] = pacing["quest_update"]
+            except Exception as e:
+                logger.warning(f"Storyteller pacing check failed: {e}")
+
         return {"context_package": context}
     except Exception as e:
         logger.error(f"Context building failed: {e}")

@@ -92,6 +92,12 @@ def build_narrator_prompt(
     if context_package.get("npc_reveals"):
         context_parts.append(f"NPC REVEALS (weave this information into the conversation):\n{context_package['npc_reveals']}")
 
+    # Storyteller pacing event (inject naturally at the start of the narrative)
+    if context_package.get("pacing_event"):
+        context_parts.append(f"PACING EVENT (something unexpected happens — weave this into the scene before responding to the player's action):\n{context_package['pacing_event']}")
+    if context_package.get("quest_update"):
+        context_parts.append(f"QUEST PROGRESS (acknowledge this development):\n{context_package['quest_update']}")
+
     context_text = "\n\n".join(context_parts) if context_parts else "No prior context — this is the beginning of the adventure."
 
     user_message = f"""Turn {turn_number}
