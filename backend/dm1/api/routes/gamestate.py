@@ -104,20 +104,52 @@ async def get_inventory(
     character_attrs = campaign.get("character_attrs", {})
     stored_equipment = character_attrs.get("equipment", [])
 
+    # Load SRD for item details
+    srd = None
+    try:
+        from dm1.rules.srd_repository import SRDRepository
+        srd = SRDRepository.get()
+    except Exception:
+        pass
+
     items = []
     seen_names = set()
+    gold = 0
 
     # First: show stored starting equipment
     for equip in stored_equipment:
         name = equip.get("name", "Unknown")
+        index = equip.get("index", "")
         qty = equip.get("quantity", 1)
+
+        # Track gold separately
+        if index == "gp" or name.lower() == "gold pieces":
+            gold += qty
+            continue
+
         if name not in seen_names:
             seen_names.add(name)
-            items.append({
+            item_entry = {
                 "name": name,
+                "index": index,
                 "quantity": qty,
                 "source": "starting",
-            })
+                "category": "gear",
+                "weight": 0,
+            }
+            # Enrich from SRD
+            if srd and index:
+                srd_item = srd.get_equipment(index)
+                if srd_item:
+                    cat = srd_item.get("equipment_category", {}).get("index", "gear")
+                    item_entry["category"] = cat
+                    item_entry["weight"] = srd_item.get("weight", 0)
+                    if "damage" in srd_item:
+                        item_entry["damage"] = srd_item["damage"].get("damage_dice", "")
+                    if "armor_class" in srd_item:
+                        ac_data = srd_item["armor_class"]
+                        item_entry["ac_bonus"] = ac_data.get("base", 0)
+            items.append(item_entry)
 
     # Then: add any items found in the knowledge graph (acquired during play)
     try:
@@ -132,13 +164,18 @@ async def get_inventory(
                 if not any(s.lower() in fact_lower for s in seen_names):
                     items.append({
                         "name": edge.fact,
+                        "index": "",
                         "quantity": 1,
                         "source": "found",
+                        "category": "gear",
+                        "weight": 0,
                     })
     except Exception:
         pass
 
-    return {"items": items, "total": len(items)}
+    total_weight = sum(i.get("weight", 0) * i.get("quantity", 1) for i in items)
+
+    return {"items": items, "total": len(items), "gold": gold, "total_weight": total_weight}
 
 
 @router.get("/{campaign_id}/spellbook")

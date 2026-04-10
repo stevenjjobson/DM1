@@ -90,10 +90,11 @@ async def test_get_inventory(client: AsyncClient, auth_headers: dict, mock_db):
     resp = await client.get(f"/api/gamestate/{campaign_id}/inventory", headers=auth_headers)
     assert resp.status_code == 200
     data = resp.json()
-    assert data["total"] >= 3
+    assert data["total"] >= 2
     names = [i["name"] for i in data["items"]]
     assert "Quarterstaff" in names
-    assert "Gold Pieces" in names
+    assert "Component Pouch" in names
+    assert data["gold"] == 15  # Gold tracked separately
 
 
 @pytest.mark.asyncio

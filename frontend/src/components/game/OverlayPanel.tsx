@@ -146,32 +146,83 @@ function CharacterPanel({ campaignId }: { campaignId: string }) {
   );
 }
 
+type InventoryItem = {
+  name: string; index: string; quantity: number; source: string;
+  category: string; weight: number; damage?: string; ac_bonus?: number;
+};
+type InventoryData = { items: InventoryItem[]; total: number; gold: number; total_weight: number };
+
+const CATEGORY_ICONS: Record<string, string> = {
+  weapon: "\u2694", armor: "\u{1F6E1}", gear: "\u{1F4E6}", adventuring_gear: "\u{1F4E6}",
+};
+
 function InventoryPanel({ campaignId }: { campaignId: string }) {
   const { accessToken } = useAuthStore();
-  const [data, setData] = useState<{ items: { name: string; quantity: number; source: string }[]; total: number } | null>(null);
+  const [data, setData] = useState<InventoryData | null>(null);
 
   useEffect(() => {
     if (accessToken) {
-      api(`/gamestate/${campaignId}/inventory`, { token: accessToken }).then(setData as any).catch(() => {});
+      api<InventoryData>(`/gamestate/${campaignId}/inventory`, { token: accessToken }).then(setData).catch(() => {});
     }
   }, [campaignId, accessToken]);
 
+  // Group items by category
+  const grouped = data ? data.items.reduce((acc, item) => {
+    const cat = item.category || "gear";
+    (acc[cat] = acc[cat] || []).push(item);
+    return acc;
+  }, {} as Record<string, InventoryItem[]>) : {};
+
+  const categoryOrder = ["weapon", "armor", "gear", "adventuring_gear"];
+  const categoryLabels: Record<string, string> = {
+    weapon: "Weapons", armor: "Armor & Shields", gear: "Gear",
+    adventuring_gear: "Adventuring Gear",
+  };
+
   return (
     <div className="space-y-3">
-      <h3 className="text-amber-500 font-semibold">Inventory {data ? `(${data.total})` : ""}</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-amber-500 font-semibold">Inventory {data ? `(${data.total})` : ""}</h3>
+        {data && (
+          <div className="flex items-center gap-3 text-xs">
+            <span className="text-amber-400 font-semibold">{data.gold} gp</span>
+            <span className="text-neutral-500">{data.total_weight} lb</span>
+          </div>
+        )}
+      </div>
+
       {data && data.items.length > 0 ? (
-        <div className="space-y-1">
-          {data.items.map((item, i) => (
-            <div key={i} className="flex items-center justify-between bg-neutral-800 rounded px-3 py-2">
-              <div className="flex items-center gap-2">
-                <span className="text-neutral-500">{item.source === "found" ? "✨" : "📦"}</span>
-                <span className="text-sm text-neutral-200">{item.name}</span>
+        <div className="space-y-4">
+          {[...new Set([...categoryOrder, ...Object.keys(grouped)])].map((cat) => {
+            const items = grouped[cat];
+            if (!items || items.length === 0) return null;
+            return (
+              <div key={cat}>
+                <div className="text-xs text-neutral-500 font-semibold mb-1">
+                  {categoryLabels[cat] || cat.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
+                </div>
+                <div className="space-y-1">
+                  {items.map((item, i) => (
+                    <div key={i} className="flex items-center justify-between bg-neutral-800 rounded px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-neutral-500 text-sm">{CATEGORY_ICONS[cat] || "\u{1F4E6}"}</span>
+                        <div>
+                          <span className="text-sm text-neutral-200">{item.name}</span>
+                          {item.damage && <span className="text-xs text-red-400 ml-2">{item.damage}</span>}
+                          {item.ac_bonus ? <span className="text-xs text-blue-400 ml-2">AC {item.ac_bonus}</span> : null}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {item.weight > 0 && <span className="text-[10px] text-neutral-600">{item.weight}lb</span>}
+                        {item.quantity > 1 && <span className="text-xs text-neutral-500">x{item.quantity}</span>}
+                        {item.source === "found" && <span className="text-[10px] text-amber-600">new</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              {item.quantity > 1 && (
-                <span className="text-xs text-neutral-500">x{item.quantity}</span>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="text-sm text-neutral-500 py-4 text-center">
