@@ -49,6 +49,7 @@ services:
       - "traefik.http.routers.backend.priority=100"
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
       - "traefik.http.services.backend.loadbalancer.server.scheme=http"
+      - "traefik.docker.network=dm1-web"
     volumes:
       - dm1-assets:/app/assets
     networks:
