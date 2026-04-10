@@ -81,11 +81,8 @@ export default function DashboardPage() {
     fetchCampaigns();
   }, [user, router, fetchCampaigns]);
 
-  const handleNewCampaign = async () => {
-    const campaign = await createCampaign("New Adventure");
-    if (campaign) {
-      router.push(`/campaign/${campaign.id}/game`);
-    }
+  const handleNewCampaign = () => {
+    router.push("/campaign/new");
   };
 
   if (!user) return null;
