@@ -20,6 +20,11 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/acme.json:/letsencrypt/acme.json
+    labels:
+      # Site-wide basic auth middleware (protects all routes)
+      # To update credentials: htpasswd -nb username password (escape $ as $$ for compose)
+      - "traefik.http.middlewares.site-auth.basicauth.users=${TRAEFIK_BASIC_AUTH}"
+      - "traefik.http.middlewares.site-auth.basicauth.realm=DungeonMasterONE Dev"
     networks:
       - dm1-web
     restart: unless-stopped
@@ -47,6 +52,7 @@ services:
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
       - "traefik.http.routers.backend.priority=100"
+      - "traefik.http.routers.backend.middlewares=site-auth@docker"
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
       - "traefik.http.services.backend.loadbalancer.server.scheme=http"
       - "traefik.docker.network=dm1-web"
@@ -74,6 +80,7 @@ services:
       - "traefik.http.routers.frontend.rule=Host(`${DOMAIN}`) && !PathPrefix(`/api`) && !PathPrefix(`/ws`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.frontend.middlewares=site-auth@docker"
       - "traefik.http.services.frontend.loadbalancer.server.port=3000"
     networks:
       - dm1-web
