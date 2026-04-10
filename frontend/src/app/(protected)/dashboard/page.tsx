@@ -94,10 +94,11 @@ export default function DashboardPage() {
         <div className="flex items-center gap-4">
           <span className="text-sm text-neutral-400">{user.display_name}</span>
           <button
-            onClick={() => { logout(); router.push("/login"); }}
-            className="text-sm text-neutral-500 hover:text-neutral-300"
+            onClick={() => router.push("/settings")}
+            className="text-neutral-500 hover:text-neutral-300 text-lg"
+            title="Settings"
           >
-            Sign out
+            &#9881;
           </button>
         </div>
       </header>
