@@ -82,6 +82,10 @@ def build_narrator_prompt(
         if action_ctx:
             context_parts.append("RELEVANT CONTEXT:\n" + "\n".join(f"- {f}" for f in action_ctx))
 
+    # Mechanical outcomes (dice rolls, skill checks)
+    if context_package.get("mechanics"):
+        context_parts.append(context_package["mechanics"])
+
     context_text = "\n\n".join(context_parts) if context_parts else "No prior context — this is the beginning of the adventure."
 
     user_message = f"""Turn {turn_number}

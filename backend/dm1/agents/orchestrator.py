@@ -74,12 +74,27 @@ async def orchestrator_node(state: GameState) -> dict:
 
 
 async def context_node(state: GameState) -> dict:
-    """Build context package from the knowledge graph (Archivist read-only)."""
+    """Build context package from the knowledge graph + run rule enforcer."""
     try:
         context = await build_context_package(
             campaign_id=state["campaign_id"],
             player_action=state["player_action"],
         )
+
+        # Run rule enforcer for mechanical outcomes (dice rolls, skill checks)
+        from dm1.agents.rule_enforcer import build_mechanics_context
+        from dm1.graph.client import get_node_by_uuid
+
+        # Try to get character attributes for rule enforcement
+        # In a full implementation, this would come from the graph node
+        character_attrs = {"abilities": {"strength": 14, "dexterity": 12, "constitution": 13,
+                                          "intelligence": 10, "wisdom": 15, "charisma": 8},
+                           "level": 1, "proficiencies": []}
+
+        mechanics = build_mechanics_context(state["player_action"], character_attrs)
+        if mechanics:
+            context["mechanics"] = mechanics
+
         return {"context_package": context}
     except Exception as e:
         logger.error(f"Context building failed: {e}")
