@@ -70,6 +70,8 @@ class CampaignResponse(BaseModel):
     settings: CampaignSettings
     current_turn: int
     character_id: Optional[str] = None
+    character_name: Optional[str] = None
+    character_summary: Optional[str] = None
     portrait_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime

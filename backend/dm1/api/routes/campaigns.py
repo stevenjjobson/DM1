@@ -20,6 +20,11 @@ router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 def _doc_to_response(doc: dict) -> CampaignResponse:
     portrait = doc.get("portrait_filename")
     campaign_id = str(doc["_id"])
+    attrs = doc.get("character_attrs", {})
+    char_name = attrs.get("name")
+    char_race = attrs.get("race", "")
+    char_class = attrs.get("char_class", "")
+    char_summary = f"{char_race} {char_class}".strip() if char_race or char_class else None
     return CampaignResponse(
         id=campaign_id,
         name=doc["name"],
@@ -27,6 +32,8 @@ def _doc_to_response(doc: dict) -> CampaignResponse:
         settings=doc["settings"],
         current_turn=doc.get("current_turn", 0),
         character_id=doc.get("character_id"),
+        character_name=char_name,
+        character_summary=char_summary,
         portrait_url=f"/api/assets/campaigns/{campaign_id}/{portrait}" if portrait else None,
         created_at=doc["created_at"],
         updated_at=doc["updated_at"],

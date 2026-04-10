@@ -39,11 +39,17 @@ function CampaignCard({ campaign, onDelete, onArchive, onDuplicate }: {
           )}
           <div>
             <h3 className="text-lg font-semibold text-white">{campaign.name}</h3>
-            <p className="text-sm text-neutral-400 mt-1">
+            {campaign.character_name && (
+              <p className="text-sm text-amber-400">
+                {campaign.character_name}
+                {campaign.character_summary && <span className="text-neutral-500"> · {campaign.character_summary}</span>}
+              </p>
+            )}
+            <p className="text-sm text-neutral-400 mt-0.5">
               {toneLabels[campaign.settings.tone] || campaign.settings.tone}
               {campaign.current_turn > 0 && ` · Turn ${campaign.current_turn}`}
             </p>
-            <p className="text-xs text-neutral-500 mt-2">
+            <p className="text-xs text-neutral-500 mt-1">
               {campaign.status === "creating" ? "Setting up..." : `Last played ${campaign.last_played_at ? new Date(campaign.last_played_at).toLocaleDateString() : "never"}`}
             </p>
           </div>

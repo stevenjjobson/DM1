@@ -18,6 +18,8 @@ export type Campaign = {
   settings: CampaignSettings;
   current_turn: number;
   character_id: string | null;
+  character_name: string | null;
+  character_summary: string | null;
   portrait_url: string | null;
   created_at: string;
   updated_at: string;
