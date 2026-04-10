@@ -12,9 +12,12 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, WebSocketException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+import asyncio
+
 from dm1.agents.genesis import generate_world, populate_knowledge_graph
 from dm1.agents.narrator import generate_narrative_stream, parse_suggestions
 from dm1.agents.orchestrator import run_turn
+from dm1.agents.visual_director import generate_scene_async
 from dm1.api.auth import decode_token
 from dm1.api.database import get_database
 from dm1.api.middleware.auth import get_current_user_id
@@ -220,6 +223,27 @@ async def gameplay_websocket(
                 campaign["current_turn"] = turn_number
 
                 await websocket.send_json({"type": "turn_complete", "turn": turn_number})
+
+                # Fire lazy image generation (non-blocking)
+                async def on_image_ready(cid: str, filename: str):
+                    try:
+                        await websocket.send_json({
+                            "type": "image",
+                            "url": f"/api/assets/campaigns/{cid}/{filename}",
+                            "caption": player_action,
+                        })
+                    except Exception:
+                        pass  # WebSocket may have closed
+
+                campaign_tone = campaign.get("settings", {}).get("tone", "epic_fantasy")
+                asyncio.create_task(
+                    generate_scene_async(
+                        narrative_text=result["narrative"],
+                        campaign_id=campaign_id,
+                        campaign_tone=campaign_tone,
+                        on_image_ready=on_image_ready,
+                    )
+                )
 
             except Exception as e:
                 logger.error(f"Turn processing failed: {e}")

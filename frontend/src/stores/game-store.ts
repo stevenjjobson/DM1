@@ -2,8 +2,9 @@ import { create } from "zustand";
 
 export type GameMessage = {
   id: string;
-  role: "dm" | "player";
+  role: "dm" | "player" | "image";
   text: string;
+  imageUrl?: string;
   timestamp: number;
 };
 
@@ -16,6 +17,7 @@ type GameState = {
 
   addDMMessage: (text: string) => void;
   addPlayerMessage: (text: string) => void;
+  addImage: (url: string, caption: string) => void;
   setSuggestions: (actions: string[]) => void;
   setLoading: (loading: boolean) => void;
   setTurnNumber: (turn: number) => void;
@@ -43,6 +45,14 @@ export const useGameStore = create<GameState>((set) => ({
       messages: [
         ...s.messages,
         { id: crypto.randomUUID(), role: "player", text, timestamp: Date.now() },
+      ],
+    })),
+
+  addImage: (url, caption) =>
+    set((s) => ({
+      messages: [
+        ...s.messages,
+        { id: crypto.randomUUID(), role: "image", text: caption, imageUrl: url, timestamp: Date.now() },
       ],
     })),
 
