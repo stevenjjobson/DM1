@@ -26,12 +26,29 @@ type CharacterData = {
 function CharacterPanel({ campaignId }: { campaignId: string }) {
   const { accessToken } = useAuthStore();
   const [data, setData] = useState<CharacterData | null>(null);
+  const [generatingPortrait, setGeneratingPortrait] = useState(false);
 
   useEffect(() => {
     if (accessToken) {
       api<CharacterData>(`/gamestate/${campaignId}/character`, { token: accessToken }).then(setData).catch(() => {});
     }
   }, [campaignId, accessToken]);
+
+  const handleGeneratePortrait = async () => {
+    if (!accessToken) return;
+    setGeneratingPortrait(true);
+    try {
+      await api(`/character/${campaignId}/generate-portrait`, { method: "POST", token: accessToken });
+      // Refresh after a delay to pick up the new portrait
+      setTimeout(async () => {
+        const updated = await api<CharacterData>(`/gamestate/${campaignId}/character`, { token: accessToken });
+        setData(updated);
+        setGeneratingPortrait(false);
+      }, 15000); // Portraits take ~10-15s
+    } catch {
+      setGeneratingPortrait(false);
+    }
+  };
 
   if (!data) return <div className="text-sm text-neutral-500">Loading...</div>;
 
@@ -43,13 +60,23 @@ function CharacterPanel({ campaignId }: { campaignId: string }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-4">
-        {data.portrait_url ? (
-          <img src={data.portrait_url} alt={data.name} className="w-14 h-14 rounded-full object-cover border-2 border-amber-600" />
-        ) : (
-          <div className="w-14 h-14 bg-neutral-700 rounded-full flex items-center justify-center text-xl border-2 border-neutral-600">
-            {data.name.charAt(0).toUpperCase()}
-          </div>
-        )}
+        <div className="relative shrink-0">
+          {data.portrait_url ? (
+            <img src={data.portrait_url} alt={data.name} className="w-14 h-14 rounded-full object-cover border-2 border-amber-600" />
+          ) : (
+            <div className="w-14 h-14 bg-neutral-700 rounded-full flex items-center justify-center text-xl border-2 border-neutral-600">
+              {data.name.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <button
+            onClick={handleGeneratePortrait}
+            disabled={generatingPortrait}
+            className="absolute -bottom-1 -right-1 w-6 h-6 bg-neutral-700 hover:bg-amber-700 border border-neutral-600 rounded-full flex items-center justify-center text-[10px] text-neutral-300 transition-colors disabled:opacity-50"
+            title={data.portrait_url ? "Regenerate portrait" : "Generate portrait"}
+          >
+            {generatingPortrait ? "..." : "\u{1F3A8}"}
+          </button>
+        </div>
         <div>
           <h3 className="text-lg font-bold text-white">{data.name}</h3>
           <p className="text-sm text-neutral-400">{data.race} {data.class} · Level {data.level}</p>

@@ -64,6 +64,34 @@ class CharacterPreview(BaseModel):
     selected_spells: list[str]
 
 
+@router.post("/{campaign_id}/generate-portrait")
+async def generate_portrait_on_demand(
+    campaign_id: str,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    """Generate or regenerate a character portrait for an active campaign."""
+    campaign = await db.campaigns.find_one({"_id": ObjectId(campaign_id), "user_id": user_id})
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    character_attrs = campaign.get("character_attrs", {})
+    if not character_attrs:
+        raise HTTPException(status_code=400, detail="No character data found")
+
+    import asyncio
+    asyncio.create_task(_generate_portrait(
+        character_name=character_attrs.get("name", "Adventurer"),
+        race_name=character_attrs.get("race", "Human"),
+        class_name=character_attrs.get("char_class", "Fighter"),
+        appearance=character_attrs.get("binding_contract", {}),
+        campaign_id=campaign_id,
+        campaign_tone=campaign.get("settings", {}).get("tone", "epic_fantasy"),
+    ))
+
+    return {"status": "generating", "message": "Portrait generation started. Refresh in a few moments."}
+
+
 @router.post("/preview", response_model=CharacterPreview)
 async def preview_character(
     body: CharacterCreateRequest,
@@ -247,6 +275,8 @@ async def create_character(
         character_class=char_class["name"],
         character_race=race["name"],
         world_setting=campaign["settings"].get("world_setting", "surprise_me"),
+        backstory=body.backstory,
+        background=body.background_index,
     )
 
     created = await populate_knowledge_graph(

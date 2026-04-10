@@ -79,16 +79,17 @@ function CampaignCard({ campaign, onDelete, onArchive, onDuplicate }: {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, logout } = useAuthStore();
+  const { user, logout, _hasHydrated } = useAuthStore();
   const { campaigns, isLoading, fetchCampaigns, createCampaign, deleteCampaign, archiveCampaign, duplicateCampaign } = useCampaignStore();
 
   useEffect(() => {
+    if (!_hasHydrated) return; // Wait for localStorage to load
     if (!user) {
       router.push("/login");
       return;
     }
     fetchCampaigns();
-  }, [user, router, fetchCampaigns]);
+  }, [user, _hasHydrated, router, fetchCampaigns]);
 
   const handleNewCampaign = () => {
     router.push("/campaign/new");

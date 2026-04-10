@@ -23,16 +23,17 @@ const STEPS = [
 
 export default function NewCampaignPage() {
   const router = useRouter();
-  const { user, accessToken } = useAuthStore();
+  const { user, accessToken, _hasHydrated } = useAuthStore();
   const wizard = useWizardStore();
   const { createCampaign } = useCampaignStore();
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!_hasHydrated) return;
     if (!user) router.push("/login");
     wizard.reset();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [_hasHydrated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const CurrentStep = STEPS[wizard.step].component;
 

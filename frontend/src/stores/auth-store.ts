@@ -27,6 +27,7 @@ type AuthState = {
   logout: () => void;
   refresh: () => Promise<boolean>;
   clearError: () => void;
+  _hasHydrated: boolean;
 };
 
 export const useAuthStore = create<AuthState>()(persist((set, get) => ({
@@ -90,6 +91,7 @@ export const useAuthStore = create<AuthState>()(persist((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+  _hasHydrated: false,
 }), {
   name: "dm1-auth",
   partialize: (state) => ({
@@ -97,4 +99,7 @@ export const useAuthStore = create<AuthState>()(persist((set, get) => ({
     accessToken: state.accessToken,
     refreshToken: state.refreshToken,
   }),
+  onRehydrateStorage: () => () => {
+    useAuthStore.setState({ _hasHydrated: true });
+  },
 }));

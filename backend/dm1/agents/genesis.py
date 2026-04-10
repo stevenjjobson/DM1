@@ -83,6 +83,8 @@ async def generate_world(
     character_class: str = "adventurer",
     character_race: str = "human",
     world_setting: str = "surprise_me",
+    backstory: str = "",
+    background: str = "",
 ) -> GenesisWorld:
     """Generate a starting world from campaign settings using structured output."""
     router = get_llm_router()
@@ -96,10 +98,18 @@ async def generate_world(
     }
     tone_desc = tone_descriptions.get(tone, "A classic fantasy adventure.")
 
+    backstory_section = ""
+    if backstory:
+        backstory_section = f"\nCharacter Backstory: {backstory}"
+    if background:
+        backstory_section += f"\nCharacter Background: {background}"
+    if backstory_section:
+        backstory_section += "\n\nIMPORTANT: Weave the character's backstory into the world — an NPC might reference their past, the starting location might connect to their history, or a quest hook might tie into their background."
+
     prompt = f"""Campaign Name: "{campaign_name}"
 Tone: {tone_desc}
 Player Character: {character_name}, a {character_race} {character_class}
-World Setting: {world_setting}
+World Setting: {world_setting}{backstory_section}
 
 IMPORTANT: The campaign name "{campaign_name}" is a creative seed — use it to inspire
 the world's theme, location names, central conflict, or atmosphere. The name should

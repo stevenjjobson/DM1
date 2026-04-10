@@ -32,7 +32,7 @@ export default function GamePage() {
   const params = useParams();
   const router = useRouter();
   const campaignId = params.id as string;
-  const { user, accessToken } = useAuthStore();
+  const { user, accessToken, _hasHydrated } = useAuthStore();
   const {
     messages,
     suggestions,
@@ -67,6 +67,7 @@ export default function GamePage() {
 
   // Initialize campaign on mount
   useEffect(() => {
+    if (!_hasHydrated) return; // Wait for localStorage to load
     if (!user || !accessToken) {
       router.push("/login");
       return;
@@ -162,7 +163,7 @@ export default function GamePage() {
       wsRef.current?.disconnect();
       wsRef.current = null;
     };
-  }, [campaignId, user, accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [campaignId, user, accessToken, _hasHydrated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Connect WebSocket after initialization
   useEffect(() => {

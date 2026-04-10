@@ -324,19 +324,36 @@ async def run_turn_streaming(campaign_id: str, player_action: str, turn_number: 
     ctx_result = await context_node(state)
     state.update(ctx_result)
 
-    # Stream narrator output
+    # Stream narrator output, filtering out SUGGESTED_ACTIONS marker
     accumulated = ""
+    suggestions_started = False
     async for chunk in generate_narrative_stream(
         player_action=player_action,
         context_package=state.get("context_package", {}),
         turn_number=turn_number,
     ):
         accumulated += chunk.content
-        yield ("narrative_chunk", chunk.content)
+        # Stop streaming to client once we hit the SUGGESTED_ACTIONS marker
+        if not suggestions_started:
+            if "SUGGESTED_ACTIONS:" in accumulated:
+                # Send only the narrative portion of this final chunk
+                clean_part = accumulated.rsplit("SUGGESTED_ACTIONS:", 1)[0]
+                # Calculate what's new since last yield
+                already_sent = len(accumulated) - len(chunk.content)
+                if len(clean_part) > already_sent:
+                    yield ("narrative_chunk", clean_part[already_sent:])
+                suggestions_started = True
+            else:
+                yield ("narrative_chunk", chunk.content)
 
-    yield ("narrative_end", accumulated)
+    # Clean narrative text (strip SUGGESTED_ACTIONS and trailing whitespace)
+    clean_narrative = accumulated
+    if "SUGGESTED_ACTIONS:" in clean_narrative:
+        clean_narrative = clean_narrative.rsplit("SUGGESTED_ACTIONS:", 1)[0].rstrip()
 
-    # Parse suggestions from accumulated text
+    yield ("narrative_end", clean_narrative)
+
+    # Parse suggestions from the full accumulated text
     suggestions = parse_suggestions(accumulated)
     yield ("suggestions", suggestions)
 
