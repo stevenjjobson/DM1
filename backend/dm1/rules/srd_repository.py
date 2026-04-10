@@ -16,8 +16,10 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# Default path relative to project root
-SRD_DATA_DIR = Path(__file__).parent.parent.parent.parent / "srd-data"
+# Resolve SRD data directory — works both locally and in Docker
+_local_path = Path(__file__).parent.parent.parent.parent / "srd-data"
+_docker_path = Path("/app/srd-data")
+SRD_DATA_DIR = _local_path if _local_path.exists() else _docker_path
 
 
 class SRDRepository:
