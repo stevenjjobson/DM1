@@ -97,6 +97,7 @@ async def get_character_sheet(
         "background": character_data.get("background", ""),
         "backstory": character_data.get("backstory", ""),
         "current_turn": campaign.get("current_turn", 0),
+        "portrait_url": f"/api/assets/campaigns/{campaign_id}/{campaign.get('portrait_filename')}" if campaign.get("portrait_filename") else None,
         "graph_context": [{"fact": e.fact, "type": e.name} for e in graph_facts[:8]],
     }
 

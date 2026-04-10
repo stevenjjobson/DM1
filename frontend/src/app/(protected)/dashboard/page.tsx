@@ -29,15 +29,24 @@ function CampaignCard({ campaign, onDelete, onArchive, onDuplicate }: {
       onClick={() => router.push(`/campaign/${campaign.id}/game`)}
     >
       <div className="flex justify-between items-start">
-        <div>
-          <h3 className="text-lg font-semibold text-white">{campaign.name}</h3>
-          <p className="text-sm text-neutral-400 mt-1">
-            {toneLabels[campaign.settings.tone] || campaign.settings.tone}
-            {campaign.current_turn > 0 && ` · Turn ${campaign.current_turn}`}
-          </p>
-          <p className="text-xs text-neutral-500 mt-2">
-            {campaign.status === "creating" ? "Setting up..." : `Last played ${campaign.last_played_at ? new Date(campaign.last_played_at).toLocaleDateString() : "never"}`}
-          </p>
+        <div className="flex items-start gap-3">
+          {campaign.portrait_url ? (
+            <img src={campaign.portrait_url} alt="" className="w-10 h-10 rounded-full object-cover border border-amber-700 shrink-0" />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-neutral-700 border border-neutral-600 flex items-center justify-center text-sm text-neutral-400 shrink-0">
+              {campaign.name.charAt(0)}
+            </div>
+          )}
+          <div>
+            <h3 className="text-lg font-semibold text-white">{campaign.name}</h3>
+            <p className="text-sm text-neutral-400 mt-1">
+              {toneLabels[campaign.settings.tone] || campaign.settings.tone}
+              {campaign.current_turn > 0 && ` · Turn ${campaign.current_turn}`}
+            </p>
+            <p className="text-xs text-neutral-500 mt-2">
+              {campaign.status === "creating" ? "Setting up..." : `Last played ${campaign.last_played_at ? new Date(campaign.last_played_at).toLocaleDateString() : "never"}`}
+            </p>
+          </div>
         </div>
 
         <button

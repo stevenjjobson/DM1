@@ -268,10 +268,20 @@ async def create_character(
         }},
     )
 
-    # Create starting equipment as graph nodes
+    # Create starting equipment as graph nodes (background)
     import asyncio
     asyncio.create_task(_create_equipment_nodes(
         starting_items, created["character_uuid"], body.campaign_id
+    ))
+
+    # Generate character portrait (background — doesn't block response)
+    asyncio.create_task(_generate_portrait(
+        character_name=body.name,
+        race_name=race["name"],
+        class_name=char_class["name"],
+        appearance=body.appearance,
+        campaign_id=body.campaign_id,
+        campaign_tone=campaign["settings"].get("tone", "epic_fantasy"),
     ))
 
     return {
@@ -345,3 +355,69 @@ async def _create_equipment_nodes(items: list[dict], character_uuid: str, campai
     except Exception as e:
         import logging
         logging.getLogger(__name__).error(f"Failed to create equipment nodes: {e}")
+
+
+async def _generate_portrait(
+    character_name: str,
+    race_name: str,
+    class_name: str,
+    appearance: dict,
+    campaign_id: str,
+    campaign_tone: str = "epic_fantasy",
+):
+    """Background task: generate character portrait via Nano Banana 2."""
+    import logging
+    logger = logging.getLogger(__name__)
+
+    try:
+        from dm1.providers.image.imagen import generate_character_portrait
+
+        # Build portrait prompt from appearance data
+        appearance_parts = []
+        if appearance.get("hair"):
+            appearance_parts.append(f"{appearance['hair']} hair")
+        if appearance.get("eyes"):
+            appearance_parts.append(f"{appearance['eyes']} eyes")
+        if appearance.get("skin"):
+            appearance_parts.append(f"{appearance['skin']} skin")
+        if appearance.get("build"):
+            appearance_parts.append(f"{appearance['build']} build")
+        if appearance.get("distinguishing"):
+            appearance_parts.append(appearance["distinguishing"])
+
+        appearance_desc = ", ".join(appearance_parts) if appearance_parts else "no specific details"
+
+        tone_styles = {
+            "epic_fantasy": "fantasy art portrait, vibrant, heroic lighting",
+            "dark_gritty": "dark fantasy portrait, muted tones, harsh shadows",
+            "lighthearted": "whimsical fantasy portrait, bright colors, friendly",
+            "horror": "dark portrait, unsettling atmosphere, pale lighting",
+            "mystery": "noir-inspired portrait, dramatic contrast, moody",
+        }
+        style = tone_styles.get(campaign_tone, "fantasy character portrait")
+
+        prompt = (
+            f"D&D character portrait of {character_name}, a {race_name} {class_name}. "
+            f"Appearance: {appearance_desc}. "
+            f"Style: {style}. Head and shoulders composition, detailed face."
+        )
+
+        result = await generate_character_portrait(
+            prompt=prompt,
+            campaign_id=campaign_id,
+        )
+
+        if result:
+            # Store portrait path in campaign document
+            from dm1.api.database import get_database
+            db = await get_database()
+            await db.campaigns.update_one(
+                {"_id": ObjectId(campaign_id)},
+                {"$set": {"portrait_filename": result["filename"]}},
+            )
+            logger.info(f"Portrait generated for {character_name}: {result['filename']}")
+        else:
+            logger.warning(f"Portrait generation returned no result for {character_name}")
+
+    except Exception as e:
+        logger.error(f"Portrait generation failed for {character_name}: {e}")

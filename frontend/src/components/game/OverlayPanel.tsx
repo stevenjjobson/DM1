@@ -19,6 +19,7 @@ type CharacterData = {
   conditions: string[];
   proficiencies: string[];
   background: string;
+  portrait_url: string | null;
   graph_context: { fact: string; type: string }[];
 };
 
@@ -42,9 +43,13 @@ function CharacterPanel({ campaignId }: { campaignId: string }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-4">
-        <div className="w-12 h-12 bg-neutral-700 rounded-full flex items-center justify-center text-xl">
-          🎭
-        </div>
+        {data.portrait_url ? (
+          <img src={data.portrait_url} alt={data.name} className="w-14 h-14 rounded-full object-cover border-2 border-amber-600" />
+        ) : (
+          <div className="w-14 h-14 bg-neutral-700 rounded-full flex items-center justify-center text-xl border-2 border-neutral-600">
+            {data.name.charAt(0).toUpperCase()}
+          </div>
+        )}
         <div>
           <h3 className="text-lg font-bold text-white">{data.name}</h3>
           <p className="text-sm text-neutral-400">{data.race} {data.class} · Level {data.level}</p>
