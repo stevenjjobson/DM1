@@ -193,7 +193,7 @@ async def populate_knowledge_graph(
         )
         created["npcs"][npc.name] = uuid
 
-    # 5. Create quest hooks
+    # 5. Create quest hooks (hidden until DM introduces them in narration)
     for quest in world.quest_hooks:
         quest_giver_uuid = created["npcs"].get(quest.quest_giver)
         quest_uuid = await create_quest(
@@ -202,6 +202,7 @@ async def populate_knowledge_graph(
             objectives=quest.objectives,
             quest_giver_uuid=quest_giver_uuid,
             group_id=campaign_id,
+            revealed=False,
         )
         created["quests"].append(quest_uuid)
 

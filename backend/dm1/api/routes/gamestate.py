@@ -167,7 +167,13 @@ async def get_quest_log(
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
 
-    # Search specifically for quest structure edges
+    # Don't show quests until the DM has introduced the world (after turn 2+)
+    # Genesis pre-creates quest hooks but they shouldn't appear before the DM reveals them
+    current_turn = campaign.get("current_turn", 0)
+    if current_turn < 2:
+        return {"active": [], "completed": [], "total": 0}
+
+    # Search for quest structure edges
     quest_edges = await search(
         "quest objective mission task goal given by",
         campaign_id, limit=15
@@ -177,13 +183,12 @@ async def get_quest_log(
     completed_quests = []
     seen = set()
     for edge in quest_edges:
-        # Only include quest-related edges, deduplicate by fact
         name_lower = edge.name.lower()
         fact_lower = edge.fact.lower()
         if name_lower not in ("has_objective", "given_by") and \
            not any(kw in fact_lower for kw in ["quest", "objective", "mission", "find", "retrieve", "rescue", "investigate"]):
             continue
-        # Deduplicate similar facts
+        # Deduplicate
         short = fact_lower[:60]
         if short in seen:
             continue

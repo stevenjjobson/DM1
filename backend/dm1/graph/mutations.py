@@ -216,12 +216,13 @@ async def create_quest(
     objectives: list[str],
     quest_giver_uuid: str | None,
     group_id: str,
+    revealed: bool = True,
 ) -> str:
     """Create a quest with objectives, optionally linked to a quest giver."""
     quest_node = await create_node(
         name=quest_name,
         node_type=NodeType.QUEST,
-        attributes={"status": "active", "description": description, "quest_confidence": 0.9},
+        attributes={"status": "active", "description": description, "quest_confidence": 0.9, "revealed": revealed},
         group_id=group_id,
         summary=f"Quest: {quest_name}",
     )
