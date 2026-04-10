@@ -82,6 +82,38 @@ function CharacterPanel({ campaignId }: { campaignId: string }) {
         </div>
       )}
 
+      {/* Proficiency Bonus + Background */}
+      <div className="flex gap-3">
+        <div className="bg-neutral-800 rounded-lg px-3 py-2 flex-1">
+          <div className="text-xs text-neutral-500">Proficiency</div>
+          <div className="text-sm font-bold text-amber-400">+{data.proficiency_bonus}</div>
+        </div>
+        {data.background && (
+          <div className="bg-neutral-800 rounded-lg px-3 py-2 flex-1">
+            <div className="text-xs text-neutral-500">Background</div>
+            <div className="text-sm font-medium text-neutral-300 capitalize">{data.background}</div>
+          </div>
+        )}
+        <div className="bg-neutral-800 rounded-lg px-3 py-2 flex-1">
+          <div className="text-xs text-neutral-500">XP</div>
+          <div className="text-sm font-medium text-neutral-300">{data.xp}</div>
+        </div>
+      </div>
+
+      {/* Skill Proficiencies */}
+      {data.proficiencies.length > 0 && (
+        <div>
+          <div className="text-xs text-neutral-500 font-semibold mb-1">Proficiencies</div>
+          <div className="flex flex-wrap gap-1">
+            {data.proficiencies.map((p) => (
+              <span key={p} className="px-2 py-0.5 bg-amber-900/20 border border-amber-800/50 text-amber-300 rounded text-xs capitalize">
+                {p.replace(/-/g, " ")}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Conditions */}
       {data.conditions.length > 0 && (
         <div>

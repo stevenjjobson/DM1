@@ -100,6 +100,13 @@ export default function DashboardPage() {
           >
             &#9881;
           </button>
+          <button
+            onClick={() => { logout(); router.push("/login"); }}
+            className="text-xs text-neutral-500 hover:text-red-400 transition-colors"
+            title="Sign out"
+          >
+            Sign out
+          </button>
         </div>
       </header>
 
