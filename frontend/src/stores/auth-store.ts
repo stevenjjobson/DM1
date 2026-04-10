@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { api, ApiError } from "@/lib/api";
 
 type User = {
@@ -28,7 +29,7 @@ type AuthState = {
   clearError: () => void;
 };
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>()(persist((set, get) => ({
   user: null,
   accessToken: null,
   refreshToken: null,
@@ -89,4 +90,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+}), {
+  name: "dm1-auth",
+  partialize: (state) => ({
+    user: state.user,
+    accessToken: state.accessToken,
+    refreshToken: state.refreshToken,
+  }),
 }));
