@@ -49,27 +49,38 @@ async def get_character_sheet(
     if not character_data and campaign.get("character_attrs"):
         character_data = campaign["character_attrs"]
 
-    # World Knowledge: key people, places, and things the character has learned
-    # that are relevant to active quests and the world around them
+    # World Knowledge: key people, places, and things discovered during play.
+    # Suppressed until turn 3+ — genesis creates graph edges that shouldn't
+    # appear before the DM introduces them in narration.
+    current_turn = campaign.get("current_turn", 0)
     graph_facts = []
-    try:
-        # Search for discovered NPCs, locations, quest-related facts
-        results = await search(
-            "important NPC location quest discovered learned knows about tavern village dungeon threat",
-            campaign_id, limit=20
-        )
-        seen = set()
-        for edge in results:
-            # Deduplicate by first 50 chars
-            key = edge.fact[:50].lower()
-            if key in seen:
-                continue
-            seen.add(key)
-            graph_facts.append(edge)
-            if len(graph_facts) >= 8:
-                break
-    except Exception:
-        pass
+    if current_turn >= 3:
+        try:
+            results = await search(
+                "NPC met spoke with location visited discovered tavern village dungeon found learned",
+                campaign_id, limit=20
+            )
+            # Filter out internal quest structure edges and deduplicate
+            skip_prefixes = ["quest given", "quest objective", "has_objective", "given_by"]
+            seen = set()
+            for edge in results:
+                fact_lower = edge.fact.lower()
+                # Skip quest scaffolding — these are internal graph structure
+                if any(fact_lower.startswith(p) for p in skip_prefixes):
+                    continue
+                # Skip very short or generic edges
+                if len(edge.fact) < 15:
+                    continue
+                # Deduplicate
+                key = fact_lower[:50]
+                if key in seen:
+                    continue
+                seen.add(key)
+                graph_facts.append(edge)
+                if len(graph_facts) >= 8:
+                    break
+        except Exception:
+            pass
 
     # Build structured character sheet
     abilities = character_data.get("abilities", {})
