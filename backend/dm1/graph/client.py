@@ -280,4 +280,5 @@ async def search(
         center_node_uuid=center_node_uuid,
         num_results=limit,
     )
-    return results
+    # Post-filter: strictly enforce group_id (Graphiti may return cross-group results)
+    return [r for r in results if getattr(r, "group_id", group_id) == group_id]

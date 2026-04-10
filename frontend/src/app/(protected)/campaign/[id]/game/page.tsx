@@ -102,16 +102,28 @@ export default function GamePage() {
           setInitialized(true);
           setLoading(false);
         } else if (campaign.status === "active") {
-          // Resume — for now just show a welcome back message
           if (messages.length === 0) {
-            addDMMessage(
-              "*You return to your adventure...*\n\nWelcome back. What would you like to do?"
-            );
-            setSuggestions([
-              "Look around",
-              "Check my inventory",
-              "Continue where I left off",
-            ]);
+            if (campaign.current_turn === 0) {
+              // Brand new adventure — ask DM to set the scene
+              setLoading(true);
+              try {
+                const result = await api<TurnResponse>(
+                  `/gameplay/${campaignId}/turn?action=${encodeURIComponent("Describe where I am and set the scene for my adventure.")}`,
+                  { method: "POST", token: accessToken }
+                );
+                addDMMessage(result.narrative);
+                setSuggestions(result.suggested_actions);
+                setTurnNumber(result.turn);
+              } catch {
+                addDMMessage("*The world takes shape around you...*\n\nYour adventure awaits. What would you like to do?");
+                setSuggestions(["Look around", "Talk to someone nearby", "Explore the area"]);
+              }
+              setLoading(false);
+            } else {
+              // Returning to existing adventure
+              addDMMessage("*You return to your adventure...*\n\nWelcome back. What would you like to do?");
+              setSuggestions(["Look around", "Check my inventory", "Continue where I left off"]);
+            }
           }
           setInitialized(true);
         }
