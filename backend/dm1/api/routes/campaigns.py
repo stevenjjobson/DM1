@@ -108,9 +108,101 @@ async def delete_campaign(
     user_id: str = Depends(get_current_user_id),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
-    result = await db.campaigns.delete_one({"_id": ObjectId(campaign_id), "user_id": user_id})
-    if result.deleted_count == 0:
+    campaign = await db.campaigns.find_one({"_id": ObjectId(campaign_id), "user_id": user_id})
+    if not campaign:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found")
+
+    await db.campaigns.delete_one({"_id": ObjectId(campaign_id)})
+
+    # Cleanup graph nodes and Qdrant collection in background
+    import asyncio
+    asyncio.create_task(_cleanup_campaign_assets(campaign_id))
+
+
+async def _cleanup_campaign_assets(campaign_id: str):
+    """Background task: remove Qdrant collection, graph edges, and images for a campaign."""
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # 1. Delete Qdrant vector collection
+    try:
+        from dm1.providers.embedding.vector_db import delete_campaign_collection
+        await delete_campaign_collection(campaign_id)
+        logger.info(f"Deleted Qdrant collection for campaign {campaign_id}")
+    except Exception as e:
+        logger.warning(f"Failed to delete Qdrant collection for {campaign_id}: {e}")
+
+    # 2. Note: knowledge graph edges with this group_id become orphaned
+    # Graphiti doesn't support bulk delete by group_id yet — edges will
+    # not appear in searches since no campaign references them
+    logger.info(f"Campaign {campaign_id} graph edges orphaned (no bulk delete in Graphiti)")
+
+    # 3. Delete generated images
+    try:
+        import shutil
+        from pathlib import Path
+        for base in [Path("/app/assets/campaigns"), Path(__file__).parent.parent.parent.parent / "assets" / "campaigns"]:
+            campaign_dir = base / campaign_id
+            if campaign_dir.exists():
+                shutil.rmtree(campaign_dir)
+                logger.info(f"Deleted asset directory: {campaign_dir}")
+                break
+    except Exception as e:
+        logger.warning(f"Failed to delete assets for {campaign_id}: {e}")
+
+
+@router.post("/cleanup-orphans")
+async def cleanup_orphaned_assets(
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    """Find and remove orphaned Qdrant collections and asset directories.
+
+    Orphans are campaign data that exists in Qdrant or the filesystem
+    but has no corresponding campaign document in MongoDB.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # Get all campaign IDs that still exist for this user
+    cursor = db.campaigns.find({"user_id": user_id})
+    active_ids = set()
+    async for doc in cursor:
+        active_ids.add(str(doc["_id"]))
+
+    cleaned = {"qdrant_collections": 0, "asset_dirs": 0}
+
+    # Clean orphaned Qdrant collections
+    try:
+        from dm1.providers.embedding.vector_db import get_qdrant, delete_campaign_collection
+        client = await get_qdrant()
+        collections = await client.get_collections()
+        for col in collections.collections:
+            if col.name.startswith("campaign_"):
+                cid = col.name.replace("campaign_", "")
+                if cid not in active_ids:
+                    await delete_campaign_collection(cid)
+                    cleaned["qdrant_collections"] += 1
+                    logger.info(f"Cleaned orphan Qdrant collection: {col.name}")
+    except Exception as e:
+        logger.warning(f"Qdrant orphan cleanup failed: {e}")
+
+    # Clean orphaned asset directories
+    try:
+        from pathlib import Path
+        import shutil
+        for base in [Path("/app/assets/campaigns"), Path(__file__).parent.parent.parent.parent / "assets" / "campaigns"]:
+            if base.exists():
+                for campaign_dir in base.iterdir():
+                    if campaign_dir.is_dir() and campaign_dir.name not in active_ids:
+                        shutil.rmtree(campaign_dir)
+                        cleaned["asset_dirs"] += 1
+                        logger.info(f"Cleaned orphan asset dir: {campaign_dir.name}")
+                break
+    except Exception as e:
+        logger.warning(f"Asset orphan cleanup failed: {e}")
+
+    return {"cleaned": cleaned, "active_campaigns": len(active_ids)}
 
 
 @router.post("/{campaign_id}/archive", response_model=CampaignResponse)
