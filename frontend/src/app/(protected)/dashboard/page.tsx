@@ -84,8 +84,7 @@ export default function DashboardPage() {
   const handleNewCampaign = async () => {
     const campaign = await createCampaign("New Adventure");
     if (campaign) {
-      // TODO: Navigate to campaign creation wizard
-      // router.push(`/campaign/new?id=${campaign.id}`);
+      router.push(`/campaign/${campaign.id}/game`);
     }
   };
 
