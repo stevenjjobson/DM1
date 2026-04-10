@@ -111,6 +111,40 @@ async def start_campaign(
 
 
 # ---------------------------------------------------------------------------
+# Session Recap (for returning players)
+# ---------------------------------------------------------------------------
+
+@router.get("/{campaign_id}/recap")
+async def get_session_recap(
+    campaign_id: str,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    """Generate a brief narrative recap for a returning player."""
+    campaign = await db.campaigns.find_one({"_id": ObjectId(campaign_id), "user_id": user_id})
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    if campaign["status"] != CampaignStatus.ACTIVE:
+        raise HTTPException(status_code=400, detail="Campaign not active")
+
+    turn_number = campaign.get("current_turn", 0)
+    if turn_number < 1:
+        return {"recap": "Your adventure awaits. What would you like to do?", "turn": 0}
+
+    from dm1.agents.archivist import build_context_package
+    from dm1.agents.narrator import generate_session_recap
+
+    try:
+        context = await build_context_package(campaign_id, "session resume")
+        recap = await generate_session_recap(context, turn_number)
+    except Exception as e:
+        logger.error(f"Recap generation failed: {e}")
+        recap = "You return to your adventure, the world waiting for your next move."
+
+    return {"recap": recap, "turn": turn_number}
+
+
+# ---------------------------------------------------------------------------
 # Gameplay Turn (REST — non-streaming, simpler for testing)
 # ---------------------------------------------------------------------------
 

@@ -127,9 +127,20 @@ export default function GamePage() {
               }
               setLoading(false);
             } else {
-              // Returning to existing adventure
-              addDMMessage("*You return to your adventure...*\n\nWelcome back. What would you like to do?");
+              // Returning to existing adventure — get AI recap
+              setLoading(true);
+              try {
+                const recap = await api<{ recap: string; turn: number }>(
+                  `/gameplay/${campaignId}/recap`,
+                  { token: accessToken }
+                );
+                addDMMessage(`*When we last left off...*\n\n${recap.recap}`);
+                setTurnNumber(recap.turn);
+              } catch {
+                addDMMessage("*You return to your adventure...*\n\nWelcome back. What would you like to do?");
+              }
               setSuggestions(["Look around", "Check my inventory", "Continue where I left off"]);
+              setLoading(false);
             }
           }
           setInitialized(true);
