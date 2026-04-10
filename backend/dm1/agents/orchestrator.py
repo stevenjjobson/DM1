@@ -93,6 +93,23 @@ async def context_node(state: GameState) -> dict:
         if mechanics:
             context["mechanics"] = mechanics
 
+        # For NPC interactions, generate in-character dialogue via NPC Agent
+        if state.get("action_type") == "npc_interaction":
+            try:
+                from dm1.agents.npc import simulate_npc_interaction
+                # Extract NPC name hints from the action
+                npc_result = await simulate_npc_interaction(
+                    npc_name="nearby NPC",
+                    player_action=state["player_action"],
+                    campaign_id=state["campaign_id"],
+                )
+                if npc_result.get("dialogue"):
+                    context["npc_dialogue"] = npc_result["dialogue"]
+                if npc_result.get("reveals"):
+                    context["npc_reveals"] = npc_result["reveals"]
+            except Exception as e:
+                logger.warning(f"NPC Agent failed, narrator will improvise: {e}")
+
         return {"context_package": context}
     except Exception as e:
         logger.error(f"Context building failed: {e}")

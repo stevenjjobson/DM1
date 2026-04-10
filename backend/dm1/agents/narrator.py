@@ -86,6 +86,12 @@ def build_narrator_prompt(
     if context_package.get("mechanics"):
         context_parts.append(context_package["mechanics"])
 
+    # NPC Agent dialogue (pre-generated in-character response)
+    if context_package.get("npc_dialogue"):
+        context_parts.append(f"NPC DIALOGUE (use this in your narration, adapt it naturally):\n{context_package['npc_dialogue']}")
+    if context_package.get("npc_reveals"):
+        context_parts.append(f"NPC REVEALS (weave this information into the conversation):\n{context_package['npc_reveals']}")
+
     context_text = "\n\n".join(context_parts) if context_parts else "No prior context — this is the beginning of the adventure."
 
     user_message = f"""Turn {turn_number}
